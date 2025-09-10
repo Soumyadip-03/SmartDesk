@@ -22,6 +22,11 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
 
   useEffect(() => {
     loadNotifications();
+    
+    // Auto-refresh notifications every 3 seconds
+    const interval = setInterval(loadNotifications, 3000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
@@ -32,7 +37,9 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
         type: notif.type || 'system',
         title: notif.title || 'Notification',
         message: notif.message || '',
-        time: new Date(notif.createdAt).toLocaleTimeString('en-US', {
+        time: new Date(notif.createdAt).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
           hour12: true
@@ -44,13 +51,17 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
     } catch (error) {
       console.error('Failed to load notifications:', error);
     } finally {
-      setLoading(false);
+      if (loading) setLoading(false);
     }
   };
 
 
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = async (id: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
     // Update UI immediately
     const updated = notifications.map(notif => 
       notif.id === id ? { ...notif, read: true } : notif
@@ -66,13 +77,12 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
   };
 
   const markAllAsRead = async () => {
-    // Update UI immediately
-    const updated = notifications.map(notif => ({ ...notif, read: true }));
-    setNotifications(updated);
-    
-    // Update database in background
     try {
+      // Update database first
       await apiService.markAllNotificationsAsRead();
+      // Update UI after successful database update
+      const updated = notifications.map(notif => ({ ...notif, read: true }));
+      setNotifications(updated);
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
     }
@@ -119,11 +129,11 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50" onClick={onClose}>
       <div 
-        className="absolute top-20 right-6 w-96 max-h-[70vh] bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden"
+        className="absolute top-20 right-6 w-96 h-[70vh] bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-6 border-b border-white/10">
+        <div className="flex-shrink-0 p-6 border-b border-white/10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -155,7 +165,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
         </div>
 
         {/* Notifications List */}
-        <div className="overflow-y-auto max-h-[50vh]">
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="p-8 text-center">
               <div className="animate-spin w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full mx-auto mb-3"></div>
@@ -171,12 +181,11 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                  className={`p-4 rounded-2xl border transition-all ${
                     !notification.read 
                       ? "bg-white/15 border-white/20 hover:bg-white/20" 
                       : "bg-white/5 border-white/10 hover:bg-white/10"
                   } ${notification.urgent ? "ring-2 ring-red-400/50" : ""}`}
-                  onClick={() => markAsRead(notification.id)}
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 p-2 bg-white/10 rounded-xl">
@@ -185,7 +194,10 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={(e) => markAsRead(notification.id, e)}
+                        >
                           <h3 className={`font-medium ${!notification.read ? "text-white" : "text-white/80"}`}>
                             {notification.title}
                           </h3>
@@ -219,17 +231,17 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 space-y-2">
+        <div className="flex-shrink-0 p-4 border-t border-white/10 space-y-3">
           <button 
             onClick={loadNotifications}
-            className="w-full text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors mb-2"
+            className="w-full text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
           >
             Refresh Notifications
           </button>
           {notifications.length > 0 && (
             <button 
               onClick={clearAllNotifications}
-              className="w-full text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
+              className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-300 py-2 px-4 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
             >
               Clear All Notifications
             </button>

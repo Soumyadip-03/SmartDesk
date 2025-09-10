@@ -249,6 +249,15 @@ router.post('/', authenticateToken, async (req, res) => {
         notes: notes || null
       }
     });
+    
+    // Update room status to Booked
+    await prisma.room.updateMany({
+      where: {
+        rNo: roomNumber,
+        bNo: parseInt(buildingNumber)
+      },
+      data: { rStatus: 'Booked' }
+    });
 
     // Get user name for notification
     const user = await prisma.user.findUnique({
@@ -294,6 +303,31 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
       where: { bookingId: parseInt(req.params.id) },
       data: { status: 'cancelled' }
     });
+    
+    // Update room status to Available
+    await prisma.room.updateMany({
+      where: {
+        rNo: booking.rNo,
+        bNo: booking.bNo
+      },
+      data: { rStatus: 'Available' }
+    });
+    
+    // Get user name for notification
+    const user = await prisma.user.findUnique({
+      where: { fId: req.user.facultyId },
+      select: { fName: true }
+    });
+    
+    // Create notification for all users about cancellation
+    const userName = user?.fName || 'Someone';
+    const timeStr = `${booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    await createNotificationForAllUsers(
+      'booking',
+      'Booking Cancelled',
+      `${userName} cancelled booking for Room ${booking.rNo} (Building ${booking.bNo}) ${timeStr}`,
+      false
+    );
 
     console.log('Booking cancelled:', req.params.id);
     res.json({ message: 'Booking cancelled successfully' });
@@ -317,10 +351,35 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
+    // Update room status to Available before deleting
+    await prisma.room.updateMany({
+      where: {
+        rNo: booking.rNo,
+        bNo: booking.bNo
+      },
+      data: { rStatus: 'Available' }
+    });
+    
+    // Get user name for notification before deleting
+    const user = await prisma.user.findUnique({
+      where: { fId: req.user.facultyId },
+      select: { fName: true }
+    });
+    
     // Delete booking permanently
     await prisma.booking.delete({
       where: { bookingId: parseInt(req.params.id) }
     });
+    
+    // Create notification for all users about deletion
+    const userName = user?.fName || 'Someone';
+    const timeStr = `${booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    await createNotificationForAllUsers(
+      'booking',
+      'Booking Deleted',
+      `${userName} deleted booking for Room ${booking.rNo} (Building ${booking.bNo}) ${timeStr}`,
+      false
+    );
 
     console.log('Booking deleted:', req.params.id);
     res.json({ message: 'Booking deleted successfully' });
