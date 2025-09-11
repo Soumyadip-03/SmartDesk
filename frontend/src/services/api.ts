@@ -4,7 +4,7 @@ class ApiService {
   private csrfToken: string | null = null;
 
   private getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const headers: Record<string, string> = {};
     if (token) headers.Authorization = `Bearer ${token}`;
     if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
@@ -43,7 +43,7 @@ class ApiService {
       console.log('Making request to:', `${API_BASE_URL}${endpoint}`);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
       
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
@@ -61,8 +61,8 @@ class ApiService {
 
       if (response.status === 401 || response.status === 403) {
         if (endpoint.includes('/auth/')) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
           window.location.reload();
           return;
         }
@@ -263,6 +263,12 @@ class ApiService {
   async getActiveBookings(buildingNumber: string, date: string) {
     const params = new URLSearchParams({ buildingNumber, date });
     return this.request(`/bookings/active?${params}`);
+  }
+
+  async getBuildingBookings(buildingNumber: string, date?: string) {
+    const today = date || new Date().toISOString().split('T')[0];
+    const params = new URLSearchParams({ date: today });
+    return this.request(`/bookings/building/${buildingNumber}?${params}`);
   }
 
   // Wishlist

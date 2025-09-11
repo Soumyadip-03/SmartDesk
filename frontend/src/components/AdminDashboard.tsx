@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, Users, Activity, Trash2, Settings, Search } from 'lucide-react';
 import { SharedSidebar } from './SharedSidebar';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -11,6 +12,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogout }: AdminDashboardProps) => {
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('security');
   const [failedLogins, setFailedLogins] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
@@ -394,7 +396,11 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
   // Show access denied if not authorized
   if (!isAuthorized) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white z-50">
+      <div className={`fixed inset-0 z-50 transition-colors duration-300 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
+          : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'
+      }`}>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
         <div className="relative z-10 flex h-full">
           <SharedSidebar
@@ -426,7 +432,11 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
   }
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white z-50">
+    <div className={`fixed inset-0 z-50 transition-colors duration-300 ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'
+    }`}>
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
       
@@ -461,7 +471,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'security' 
                   ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
-                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
               }`}
             >
               <Shield className="w-4 h-4 inline mr-2" />
@@ -472,7 +484,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'sessions' 
                   ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
-                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
               }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
@@ -483,7 +497,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'roomTypes' 
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' 
-                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
               }`}
             >
               <Settings className="w-4 h-4 inline mr-2" />
@@ -494,7 +510,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'roomStatus' 
                   ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' 
-                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
               }`}
             >
               <Activity className="w-4 h-4 inline mr-2" />
@@ -505,7 +523,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'roomCapacity' 
                   ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' 
-                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
               }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
@@ -516,7 +536,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'maintenance' 
                   ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
               }`}
             >
               <Activity className="w-4 h-4 inline mr-2" />
@@ -527,12 +549,20 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
             <Shield className="w-8 h-8 text-blue-400" />
-            <h1 className="text-2xl font-semibold text-white">Admin Dashboard</h1>
+            <h1 className={`text-2xl font-semibold ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>Admin Dashboard</h1>
           </div>
             {loading && (
               <div className="text-center py-8">
-                <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full mx-auto mb-4"></div>
-                <div className="text-white/60">Loading data...</div>
+                <div className={`animate-spin w-8 h-8 border-2 rounded-full mx-auto mb-4 ${
+                  theme === 'dark' 
+                    ? 'border-white/20 border-t-white/60' 
+                    : 'border-gray-300 border-t-gray-700'
+                }`}></div>
+                <div className={`${
+                  theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                }`}>Loading data...</div>
               </div>
             )}
 
@@ -540,7 +570,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             {activeTab === 'security' && !loading && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-medium text-white">Failed Login Attempts (Last 24 Hours)</h2>
+                  <h2 className={`text-xl font-medium ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>Failed Login Attempts (Last 24 Hours)</h2>
                   <button
                     onClick={() => fetchFailedLogins(true)}
                     disabled={isRefreshing}
@@ -579,7 +611,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             {activeTab === 'sessions' && !loading && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-medium text-white">Active Sessions (Last 24 Hours)</h2>
+                  <h2 className={`text-xl font-medium ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>Active Sessions (Last 24 Hours)</h2>
                   <button
                     onClick={() => fetchActiveSessions(true)}
                     disabled={isRefreshing}
@@ -589,7 +623,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </button>
                 </div>
                 {activeSessions.length === 0 ? (
-                  <div className="text-center py-8 text-white/60">No active sessions found</div>
+                  <div className={`text-center py-8 ${
+                  theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                }`}>No active sessions found</div>
                 ) : (
                   <div className="grid gap-4">
                     {activeSessions.map((session: any, index) => (
@@ -617,14 +653,54 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             {/* Room Types Tab */}
             {activeTab === 'roomTypes' && !loading && (
               <div className="space-y-6">
-                <h2 className="text-xl font-medium text-white mb-6">Room Type Management</h2>
-                <p className="text-white/60 text-sm mb-4">Click on any room to assign a type tag</p>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className={`text-xl font-medium ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>Room Type Management</h2>
+                    <p className={`text-sm mt-1 ${
+                      theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                    }`}>Click on any room to assign a type tag</p>
+                    {isSearchActive && (
+                      <p className={`text-sm mt-1 ${
+                        theme === 'dark' ? 'text-purple-300' : 'text-purple-600'
+                      }`}>Showing search results for: "{searchQuery}"</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <input
+                        type="text"
+                        placeholder="Search rooms (e.g., 1-101, Building 1, Room 101)"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="bg-gray-800/80 backdrop-blur-md text-white placeholder-white/50 border-2 border-white/30 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-300 w-80"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setIsSearchActive(true)}
+                      className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-4 py-3 rounded-xl text-sm transition-all border border-blue-500/30 font-medium"
+                    >
+                      Search
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setIsSearchActive(false);
+                      }}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-4 py-3 rounded-xl text-sm transition-all border border-red-500/30 font-medium"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
                 {rooms.length === 0 ? (
                   <div className="text-center py-8 text-white/60">No rooms found</div>
                 ) : (
                   <div className="space-y-6">
                     {Object.entries(groupRoomsByBuilding()).map(([buildingNumber, buildingRooms]: [string, any]) => {
-                      const filteredBuildingRooms = filterRooms(buildingRooms);
+                      const filteredBuildingRooms = isSearchActive ? filterRooms(buildingRooms) : buildingRooms;
                       if (filteredBuildingRooms.length === 0) return null;
                       
                       return (
@@ -670,12 +746,50 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             {/* Room Status Tab */}
             {activeTab === 'roomStatus' && !loading && (
               <div className="space-y-4">
-                <h2 className="text-xl font-medium text-white mb-6">Room Status Management</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className={`text-xl font-medium ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>Room Status Management</h2>
+                    {isSearchActive && (
+                      <p className={`text-sm mt-1 ${
+                        theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
+                      }`}>Showing search results for: "{searchQuery}"</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <input
+                        type="text"
+                        placeholder="Search rooms (e.g., 1-101, Building 1, Room 101)"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="bg-gray-800/80 backdrop-blur-md text-white placeholder-white/50 border-2 border-white/30 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 transition-all duration-300 w-80"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setIsSearchActive(true)}
+                      className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-4 py-3 rounded-xl text-sm transition-all border border-blue-500/30 font-medium"
+                    >
+                      Search
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setIsSearchActive(false);
+                      }}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-4 py-3 rounded-xl text-sm transition-all border border-red-500/30 font-medium"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
                 {rooms.length === 0 ? (
                   <div className="text-center py-8 text-white/60">No rooms found</div>
                 ) : (
                   <div className="grid gap-4">
-                    {filterRooms(rooms).map((room: any) => (
+                    {(isSearchActive ? filterRooms(rooms) : rooms).map((room: any) => (
                       <div key={`${room.rNo}-${room.bNo}`} className="bg-white/10 border border-white/20 rounded-xl p-4">
                         <div className="flex justify-between items-center">
                           <div>
@@ -713,9 +827,13 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-medium text-white">Room Capacity Management</h2>
+                    <h2 className={`text-xl font-medium ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>Room Capacity Management</h2>
                     {isSearchActive && (
-                      <p className="text-teal-300 text-sm mt-1">Showing search results for: "{searchQuery}"</p>
+                      <p className={`text-sm mt-1 ${
+                        theme === 'dark' ? 'text-teal-300' : 'text-teal-600'
+                      }`}>Showing search results for: "{searchQuery}"</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -809,7 +927,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             {activeTab === 'maintenance' && !loading && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-medium text-white">System Maintenance</h2>
+                  <h2 className={`text-xl font-medium ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>System Maintenance</h2>
                   <button
                     onClick={() => fetchMaintenanceStats(true)}
                     disabled={isRefreshing}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { apiService } from '../services/api';
 import { Toast } from './Toast';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LoginInterfaceProps {
   onLogin: (user: any) => void;
@@ -31,8 +32,8 @@ export const LoginInterface: React.FC<LoginInterfaceProps> = ({ onLogin }) => {
         ? await apiService.login(formData.email, formData.password)
         : await apiService.register(formData.email, formData.name, formData.establishmentId, formData.facultyId, formData.password);
       
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      sessionStorage.setItem('token', response.token);
+      sessionStorage.setItem('user', JSON.stringify(response.user));
       
       // Show success toast
       const message = isLogin ? 'Successfully logged in!' : 'Successfully registered as a user of SmartDesk!';
@@ -50,8 +51,14 @@ export const LoginInterface: React.FC<LoginInterfaceProps> = ({ onLogin }) => {
     }
   };
 
+  const { theme } = useTheme();
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white flex items-center justify-center">
+    <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'
+    }`}>
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
       
@@ -68,7 +75,11 @@ export const LoginInterface: React.FC<LoginInterfaceProps> = ({ onLogin }) => {
         </div>
 
         {/* Auth Card */}
-        <div className="bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+        <div className={`backdrop-blur-xl rounded-3xl p-8 shadow-2xl border ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-white/20 to-white/10 border-white/20'
+            : 'bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600'
+        }`}>
           <div className="text-center mb-8">
             <h2 className="text-2xl font-semibold text-white mb-2">
               {isLogin ? 'Welcome Back' : 'Create Account'}

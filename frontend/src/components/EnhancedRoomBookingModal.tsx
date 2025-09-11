@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Clock, Calendar, MapPin, Users, BookOpen, Repeat } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Room {
   rNo: string;
@@ -27,12 +28,19 @@ export const EnhancedRoomBookingModal = ({
   onWishlist,
   onSwapRoom 
 }: EnhancedRoomBookingModalProps) => {
+  const { theme } = useTheme();
   const [bookingType, setBookingType] = useState<'now' | 'later'>('now');
   const [formData, setFormData] = useState({
     facultyName: JSON.parse(localStorage.getItem('user') || '{}').name || '',
     courseSubject: '',
     numberOfStudents: '',
-    date: new Date().toISOString().split('T')[0],
+    date: (() => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })(),
     startTime: '',
     endTime: '',
     purpose: '',
@@ -84,7 +92,11 @@ export const EnhancedRoomBookingModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-3 w-full max-w-xl max-h-[95vh] overflow-y-auto border border-white/20">
+      <div className={`rounded-xl p-3 w-full max-w-xl max-h-[95vh] overflow-y-auto border ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-white/20'
+          : 'bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600 shadow-2xl'
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -205,7 +217,26 @@ export const EnhancedRoomBookingModal = ({
                 name="date"
                 value={formData.date}
                 onChange={handleInputChange}
-                min={new Date().toISOString().split('T')[0]}
+                min={(() => {
+                  const today = new Date();
+                  const year = today.getFullYear();
+                  const month = String(today.getMonth() + 1).padStart(2, '0');
+                  const day = String(today.getDate()).padStart(2, '0');
+                  return `${year}-${month}-${day}`;
+                })()}
+                onInput={(e) => {
+                  const selectedDate = new Date(e.currentTarget.value + 'T00:00:00');
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  if (selectedDate < today) {
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const todayStr = `${year}-${month}-${day}`;
+                    e.currentTarget.value = todayStr;
+                    setFormData(prev => ({ ...prev, date: todayStr }));
+                  }
+                }}
                 className={`w-full border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
                   bookingType === 'now' 
                     ? 'bg-white/5 cursor-not-allowed text-white/50' 

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import authRoutes from './routes/auth.js';
 import buildingRoutes from './routes/buildings.js';
 import bookingRoutes from './routes/bookings.js';
@@ -11,6 +12,8 @@ import analyticsRoutes from './routes/analytics.js';
 import roomRoutes from './routes/rooms.js';
 import { authenticateToken } from './middleware/auth.js';
 import { sanitizeForLog } from './utils/sanitize.js';
+import { initializeSocket } from './socket/socketHandler.js';
+import { startBookingScheduler } from './utils/bookingScheduler.js';
 
 dotenv.config();
 
@@ -61,9 +64,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: isProduction ? 'Something went wrong!' : sanitizeForLog(err.message) });
 });
 
-app.listen(PORT, () => {
+const server = createServer(app);
+const io = initializeSocket(server);
+
+server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   console.log(`🌐 API available at: http://localhost:${PORT}/api`);
+  console.log(`🔌 Socket.io ready for real-time updates`);
+  
+  // Start booking scheduler
+  startBookingScheduler();
+  console.log(`⏰ Booking scheduler started`);
 });
 
 // Handle server errors

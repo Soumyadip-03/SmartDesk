@@ -129,6 +129,26 @@ const createNotificationForAllUsers = async (type, title, message, urgent = fals
   }
 };
 
-export { createNotificationForAllUsers };
+// Helper function to create notification for specific user
+const createNotificationForUser = async (userId, type, title, message, urgent = false) => {
+  try {
+    await prisma.notification.create({
+      data: {
+        fId: userId,
+        type,
+        title,
+        message,
+        urgent,
+        isRead: false
+      }
+    });
+    
+    console.log(`Created notification for user ${userId}`);
+  } catch (error) {
+    console.error('Failed to create user notification:', error);
+  }
+};
+
+export { createNotificationForAllUsers, createNotificationForUser };
 
 export default router;

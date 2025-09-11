@@ -1,6 +1,7 @@
 import { Heart, X, Home, MapPin, Users, Clock } from "lucide-react";
 import { useState } from "react";
 import { CompactRoomBookingModal } from "./CompactRoomBookingModal";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface WishlistRoom {
   rNo: string;
@@ -26,6 +27,7 @@ export function WishlistInterface({
   onHome,
   onBooking 
 }: WishlistInterfaceProps) {
+  const { theme } = useTheme();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<WishlistRoom | null>(null);
   
@@ -48,7 +50,11 @@ export function WishlistInterface({
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white z-50">
+    <div className={`fixed inset-0 z-50 transition-colors duration-300 ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'
+    }`}>
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
       
@@ -60,18 +66,26 @@ export function WishlistInterface({
               <Heart className="w-6 h-6 text-red-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-white">My Wishlist</h1>
-              <p className="text-white/60 text-sm">{wishlistRooms.length} rooms saved</p>
+              <h1 className={`text-2xl font-semibold ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>My Wishlist</h1>
+              <p className={`text-sm ${
+                theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+              }`}>{wishlistRooms.length} rooms saved</p>
             </div>
           </div>
           
           {onHome && (
             <button 
               onClick={onHome}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className={`p-2 rounded-lg transition-colors ${
+                theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-800/20'
+              }`}
               title="Go Home"
             >
-              <Home className="w-5 h-5 text-white/80" />
+              <Home className={`w-5 h-5 ${
+                theme === 'dark' ? 'text-white/80' : 'text-gray-700'
+              }`} />
             </button>
           )}
         </div>
@@ -79,11 +93,19 @@ export function WishlistInterface({
         {/* Wishlist Content */}
         {wishlistRooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64">
-            <div className="p-6 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-3xl border border-white/10 mb-6">
+            <div className={`p-6 backdrop-blur-sm rounded-3xl border mb-6 ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-white/10 to-white/5 border-white/10'
+                : 'bg-gradient-to-br from-gray-800/90 to-gray-700/90 border-gray-600 shadow-lg'
+            }`}>
               <Heart className="w-16 h-16 text-white/40 mx-auto" />
             </div>
-            <h3 className="text-xl font-medium text-white mb-2">No rooms in wishlist</h3>
-            <p className="text-white/60 text-center max-w-md">
+            <h3 className={`text-xl font-medium mb-2 ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>No rooms in wishlist</h3>
+            <p className={`text-center max-w-md ${
+              theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+            }`}>
               Start adding rooms to your wishlist by clicking the heart icon when viewing room details.
             </p>
           </div>
@@ -92,7 +114,11 @@ export function WishlistInterface({
             {wishlistRooms.map((room) => (
               <div 
                 key={`${room.rNo}-${room.bNo}`}
-                className="bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:from-white/25 hover:to-white/15 transition-all duration-300 group"
+                className={`backdrop-blur-sm rounded-2xl p-6 border transition-all duration-300 group ${
+                  theme === 'dark'
+                    ? 'bg-gradient-to-br from-white/20 to-white/10 border-white/10 hover:from-white/25 hover:to-white/15'
+                    : 'bg-gradient-to-br from-gray-800/90 to-gray-700/90 border-gray-600 hover:from-gray-800/95 hover:to-gray-700/95 shadow-lg'
+                }`}
               >
                 {/* Room Header */}
                 <div className="flex items-start justify-between mb-4">

@@ -1,4 +1,5 @@
 import { Home, User, Settings, LogOut, Calendar, Shield } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface SharedSidebarProps {
   title: string;
@@ -33,8 +34,14 @@ export function SharedSidebar({
   wishlistCount = 0,
   children 
 }: SharedSidebarProps) {
+  const { theme } = useTheme();
+  
   return (
-    <div className="w-80 bg-white/10 backdrop-blur-md border-r border-white/10">
+    <div className={`w-80 backdrop-blur-md border-r ${
+      theme === 'dark'
+        ? 'bg-white/10 border-white/10'
+        : 'bg-gray-800/90 border-gray-600'
+    }`}>
       <div className="p-6">
         <div className="mb-8">
           <h1 className="text-2xl font-medium text-white">{title}</h1>
@@ -44,7 +51,7 @@ export function SharedSidebar({
           {onHome && (
             <button 
               onClick={onHome}
-              className="w-full flex items-center gap-3 p-4 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="w-full flex items-center gap-3 p-4 text-white hover:text-white hover:bg-white/10 rounded-xl transition-all"
             >
               <Home className="w-5 h-5" />
               <span className="font-medium">HOME</span>
@@ -57,7 +64,7 @@ export function SharedSidebar({
               className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all relative ${
                 activeSection === "bookings" 
                   ? "bg-white/20 text-white border border-white/20" 
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-white hover:text-white hover:bg-white/10"
               }`}
             >
               <Calendar className="w-5 h-5" />
@@ -76,7 +83,7 @@ export function SharedSidebar({
               className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${
                 activeSection === "account" 
                   ? "bg-white/20 text-white border border-white/20" 
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-white hover:text-white hover:bg-white/10"
               }`}
             >
               <User className="w-5 h-5" />
@@ -90,7 +97,7 @@ export function SharedSidebar({
               className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${
                 activeSection === "settings" 
                   ? "bg-white/20 text-white border border-white/20" 
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-white hover:text-white hover:bg-white/10"
               }`}
             >
               <Settings className="w-5 h-5" />
@@ -104,7 +111,7 @@ export function SharedSidebar({
               className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${
                 activeSection === "admin" 
                   ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" 
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-white hover:text-white hover:bg-white/10"
               }`}
             >
               <Shield className="w-5 h-5" />

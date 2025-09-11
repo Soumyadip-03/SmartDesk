@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiService } from '../services/api';
+import { socketService } from '../services/socket';
 
 interface RealTimeUpdatesProps {
   onRoomStatusChange?: (roomId: string, status: string) => void;
@@ -13,47 +13,85 @@ export const RealTimeUpdates = ({
   onNotification 
 }: RealTimeUpdatesProps) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   useEffect(() => {
-    // Polling for real-time updates (can be replaced with WebSocket)
-    const pollForUpdates = async () => {
-      try {
-        // Check for room status changes
-        const rooms = await apiService.getRooms();
-        // Process room updates...
+    const token = sessionStorage.getItem('token');
+    if (!token) return;
 
-        // Check for new notifications
-        const notifications = await apiService.getNotifications();
-        // Process notifications...
+    // Connect to Socket.io only once
+    const socket = socketService.connect();
+    if (!socket) return;
+    
+    console.log('🔌 RealTimeUpdates: Setting up socket connection');
 
-        setIsConnected(true);
-      } catch (error) {
-        console.error('Real-time update error:', error);
-        setIsConnected(false);
-      }
+    // Set up event listeners
+    const handleConnect = () => {
+      setIsConnected(true);
+      setLastUpdate(new Date());
     };
 
-    // Poll every 30 seconds
-    const interval = setInterval(pollForUpdates, 30000);
-    
-    // Initial poll
-    pollForUpdates();
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
 
-    return () => clearInterval(interval);
-  }, [onRoomStatusChange, onBookingUpdate, onNotification]);
+    const handleRoomStatusChange = (data) => {
+      if (onRoomStatusChange) {
+        onRoomStatusChange(data.roomNumber, data.status);
+      }
+      setLastUpdate(new Date());
+    };
+
+    const handleBookingUpdate = (data) => {
+      if (onBookingUpdate) {
+        onBookingUpdate(data.booking);
+      }
+      setLastUpdate(new Date());
+    };
+
+    const handleNewNotification = (data) => {
+      if (onNotification) {
+        onNotification(data.notification);
+      }
+      setLastUpdate(new Date());
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socketService.onRoomStatusChanged(handleRoomStatusChange);
+    socketService.onBookingUpdated(handleBookingUpdate);
+    socketService.onNewNotification(handleNewNotification);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socketService.off('roomStatusChanged', handleRoomStatusChange);
+      socketService.off('bookingUpdated', handleBookingUpdate);
+      socketService.off('newNotification', handleNewNotification);
+    };
+  }, []);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <div className={`px-3 py-2 rounded-lg text-xs font-medium ${
+    <div className="fixed bottom-4 right-4 z-40">
+      <div className={`px-3 py-2 rounded-lg text-xs font-medium backdrop-blur-sm transition-all duration-500 ${
         isConnected 
           ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-          : 'bg-red-500/20 text-red-300 border border-red-500/30'
+          : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
       }`}>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${
-            isConnected ? 'bg-green-400' : 'bg-red-400'
+            isConnected ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'
           }`}></div>
-          {isConnected ? 'Live Updates Active' : 'Connection Lost'}
+          <span>{isConnected ? 'Real-time' : 'Connecting...'}</span>
+          {isConnected && (
+            <span className="text-green-200/60 text-xs">
+              {lastUpdate.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </span>
+          )}
         </div>
       </div>
     </div>

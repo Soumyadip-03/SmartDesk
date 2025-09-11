@@ -2,6 +2,8 @@ import { ArrowLeft, Filter } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { CompactRoomBookingModal } from "./CompactRoomBookingModal";
 import { apiService } from "../services/api";
+import { socketService } from "../services/socket";
+import { useTheme } from "../contexts/ThemeContext";
 
 // Global cache for room data - persists across rapid building switches
 const roomCache = new Map<string, Room[]>();
@@ -47,12 +49,15 @@ interface BookingData {
 }
 
 export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBooking }: BuildingDetailProps) {
+  const { theme } = useTheme();
   const [roomTypeFilter, setRoomTypeFilter] = useState("all type");
   const [roomStatusFilter, setRoomStatusFilter] = useState("all status");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [allRooms, setAllRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const roomTypes = [
     "all type",
@@ -102,16 +107,29 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       
-      // Get all active bookings for today
-      const activeBookings = await apiService.getActiveBookings(buildingNumber, today);
+      // Get all bookings for this building today
+      const allBookings = await apiService.getBuildingBookings(buildingNumber, today);
       
       return rooms.map(room => {
         // Check if room has an active booking right now
-        const activeBooking = activeBookings.find((booking: any) => {
+        const activeBooking = allBookings.find((booking: any) => {
           if (booking.rNo !== room.rNo || booking.bNo !== room.bNo) return false;
+          if (booking.status === 'cancelled') return false;
           
-          const bookingStart = new Date(booking.startTime);
-          const bookingEnd = new Date(booking.endTime);
+          // Check if booking is for today
+          const bookingDate = new Date(booking.date).toISOString().split('T')[0];
+          if (bookingDate !== today) return false;
+          
+          // Parse booking times
+          let bookingStart, bookingEnd;
+          
+          if (booking.startTime.includes('T')) {
+            bookingStart = new Date(booking.startTime);
+            bookingEnd = new Date(booking.endTime);
+          } else {
+            bookingStart = new Date(`${booking.date}T${booking.startTime}:00`);
+            bookingEnd = new Date(`${booking.date}T${booking.endTime}:00`);
+          }
           
           return now >= bookingStart && now <= bookingEnd;
         });
@@ -119,11 +137,9 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
         // Update room status based on active booking
         if (activeBooking) {
           return { ...room, rStatus: 'Booked' };
-        } else if (room.rStatus === 'Booked') {
-          // If room was booked but no active booking, set to available
-          return { ...room, rStatus: 'Available' };
         }
         
+        // Don't change status if no active booking - preserve existing status
         return room;
       });
     } catch (error) {
@@ -200,17 +216,64 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
     fetchLiveData();
   }, [buildingNumber, generateStaticRooms]);
 
-  // Auto-refresh room status every minute
-  useEffect(() => {
-    const interval = setInterval(async () => {
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
       const updatedRooms = await checkRoomCurrentStatus(allRooms);
       setAllRooms(updatedRooms);
       
       const cacheKey = `building-${buildingNumber}`;
       roomCache.set(cacheKey, updatedRooms);
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Failed to refresh rooms:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Listen for real-time room status changes via Socket.io
+  useEffect(() => {
+    // Join building room for real-time updates
+    socketService.joinBuilding(buildingNumber);
+
+    const handleRoomStatusChange = (data: { buildingNumber: string; roomNumber: string; status: string }) => {
+      if (data.buildingNumber === buildingNumber) {
+        setAllRooms(prevRooms => {
+          const updatedRooms = prevRooms.map(room => 
+            room.rNo === data.roomNumber && room.bNo.toString() === data.buildingNumber
+              ? { ...room, rStatus: data.status }
+              : room
+          );
+          
+          const cacheKey = `building-${buildingNumber}`;
+          roomCache.set(cacheKey, updatedRooms);
+          return updatedRooms;
+        });
+        setLastRefresh(new Date());
+      }
+    };
+
+    socketService.onRoomStatusChanged(handleRoomStatusChange);
+
+    return () => {
+      socketService.leaveBuilding(buildingNumber);
+      socketService.off('roomStatusChanged', handleRoomStatusChange);
+    };
+  }, [buildingNumber]);
+
+  // Timer to check room statuses every minute
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      const updatedRooms = await checkRoomCurrentStatus(allRooms);
+      setAllRooms(updatedRooms);
+      const cacheKey = `building-${buildingNumber}`;
+      roomCache.set(cacheKey, updatedRooms);
+      setLastRefresh(new Date());
     }, 60000); // Check every minute
 
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [allRooms, buildingNumber]);
 
   const filteredRooms = allRooms.filter(room => {
@@ -276,7 +339,11 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white z-50 overflow-y-auto">
+    <div className={`fixed inset-0 z-50 overflow-y-auto transition-colors duration-300 ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'
+    }`}>
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
       
       <div className="relative z-10 p-6">
@@ -285,11 +352,17 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
             onClick={onBack}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-6 h-6 text-white" />
+            <ArrowLeft className={`w-6 h-6 ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`} />
           </button>
           
           <div className="flex-1 flex justify-center">
-            <div className="bg-white/20 backdrop-blur-sm rounded-full px-6 py-2 border border-white/20">
+            <div className={`backdrop-blur-sm rounded-full px-6 py-2 border ${
+              theme === 'dark'
+                ? 'bg-white/20 border-white/20'
+                : 'bg-gray-800/90 border-gray-600 shadow-lg'
+            }`}>
               <span className="text-white font-medium">Book Your Room - B{buildingNumber}</span>
             </div>
           </div>
@@ -297,12 +370,18 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
 
         <div className="mb-8 flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-white/60" />
-            <span className="text-white/60 text-sm">Filters:</span>
+            <Filter className={`w-4 h-4 ${
+              theme === 'dark' ? 'text-white/60' : 'text-gray-800'
+            }`} />
+            <span className={`text-sm ${
+              theme === 'dark' ? 'text-white/60' : 'text-gray-800'
+            }`}>Filters:</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <label className="text-white/80 text-sm">Room Type:</label>
+            <label className={`text-sm ${
+              theme === 'dark' ? 'text-white/80' : 'text-gray-900'
+            }`}>Room Type:</label>
             <select 
               value={roomTypeFilter}
               onChange={(e) => setRoomTypeFilter(e.target.value)}
@@ -317,7 +396,9 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-white/80 text-sm">Room Status:</label>
+            <label className={`text-sm ${
+              theme === 'dark' ? 'text-white/80' : 'text-gray-900'
+            }`}>Room Status:</label>
             <select 
               value={roomStatusFilter}
               onChange={(e) => setRoomStatusFilter(e.target.value)}
@@ -334,18 +415,40 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
 
         <div className="space-y-4">
           <div className="flex items-center gap-3 mb-6">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20">
+            <div className={`backdrop-blur-sm rounded-lg px-4 py-2 border ${
+              theme === 'dark'
+                ? 'bg-white/20 border-white/20'
+                : 'bg-gray-800/90 border-gray-600 shadow-lg'
+            }`}>
               <span className="text-white font-medium">Building {buildingNumber}</span>
             </div>
             <div className="h-px bg-white/20 flex-1"></div>
-            <span className="text-white/60 text-sm">
-              {loading ? 'Loading...' : `${filteredRooms.length} rooms`}
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <span className={`text-sm ${
+                theme === 'dark' ? 'text-white/60' : 'text-gray-800'
+              }`}>
+                {loading ? 'Loading...' : `${filteredRooms.length} rooms`}
+              </span>
+              <span className={`text-xs ${
+                theme === 'dark' ? 'text-white/40' : 'text-gray-700'
+              }`}>
+                Updated: {lastRefresh.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
           </div>
 
           {loading ? (
             <div className="flex justify-center items-center h-32">
-              <div className="text-white/60">Loading rooms...</div>
+              <div className={`${
+                theme === 'dark' ? 'text-white/60' : 'text-gray-800'
+              }`}>Loading rooms...</div>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
@@ -374,7 +477,7 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
                       {room.rType}
                     </div>
                     <div className="text-xs opacity-60 capitalize">
-                      {room.rStatus === 'Booked' ? 'Booked Now' : room.rStatus}
+                      {room.rStatus}
                     </div>
                     {room.rStatus === 'Booked' && (
                       <div className="text-xs text-blue-300 opacity-80">
@@ -393,7 +496,11 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
           )}
         </div>
 
-        <div className="mt-12 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+        <div className={`mt-12 p-4 backdrop-blur-sm rounded-xl border ${
+          theme === 'dark'
+            ? 'bg-white/10 border-white/20'
+            : 'bg-gray-800/90 border-gray-600 shadow-lg'
+        }`}>
           <h3 className="text-white font-medium mb-3">Legend</h3>
           <div className="flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-2">

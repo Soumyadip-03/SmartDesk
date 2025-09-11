@@ -12,8 +12,8 @@ export const AuthGuard = ({ children, onLogin }: AuthGuardProps) => {
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
+      const token = sessionStorage.getItem('token');
+      const user = sessionStorage.getItem('user');
       
       if (!token || !user) {
         setIsAuthenticated(false);
@@ -26,8 +26,8 @@ export const AuthGuard = ({ children, onLogin }: AuthGuardProps) => {
         onLogin(userData);
         setIsAuthenticated(true);
       } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         setIsAuthenticated(false);
       }
       setIsChecking(false);

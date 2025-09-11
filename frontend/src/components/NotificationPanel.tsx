@@ -1,6 +1,7 @@
 import { X, Bell, Clock, CheckCircle, AlertCircle, Calendar, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiService } from "../services/api";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface NotificationPanelProps {
   onClose: () => void;
@@ -17,20 +18,18 @@ interface Notification {
 }
 
 export function NotificationPanel({ onClose }: NotificationPanelProps) {
+  const { theme } = useTheme();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     loadNotifications();
-    
-    // Auto-refresh notifications every 3 seconds
-    const interval = setInterval(loadNotifications, 3000);
-    
-    return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
     try {
+      setLoading(true);
       const data = await apiService.getNotifications();
       const formattedNotifications = data.map((notif: any) => ({
         id: notif.notificationId.toString(),
@@ -51,7 +50,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
     } catch (error) {
       console.error('Failed to load notifications:', error);
     } finally {
-      if (loading) setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -77,6 +76,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
   };
 
   const markAllAsRead = async () => {
+    setActionLoading(true);
     try {
       // Update database first
       await apiService.markAllNotificationsAsRead();
@@ -85,6 +85,8 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
       setNotifications(updated);
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -99,6 +101,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
   };
 
   const clearAllNotifications = async () => {
+    setActionLoading(true);
     try {
       // Clear from database
       await apiService.clearAllNotifications();
@@ -106,6 +109,8 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
       setNotifications([]);
     } catch (error) {
       console.error('Failed to clear all notifications:', error);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -129,7 +134,11 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50" onClick={onClose}>
       <div 
-        className="absolute top-20 right-6 w-96 h-[70vh] bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl flex flex-col"
+        className={`absolute top-20 right-6 w-96 h-[70vh] backdrop-blur-xl rounded-3xl border shadow-2xl flex flex-col ${
+          theme === 'dark'
+            ? 'bg-gradient-to-br from-white/20 to-white/10 border-white/20'
+            : 'bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -157,9 +166,10 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
           {unreadCount > 0 && (
             <button 
               onClick={markAllAsRead}
-              className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+              disabled={actionLoading}
+              className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors disabled:opacity-50"
             >
-              Mark all as read
+              {actionLoading ? "Processing..." : "Mark all as read"}
             </button>
           )}
         </div>
@@ -168,7 +178,11 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="animate-spin w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full mx-auto mb-3"></div>
+              <div className={`animate-spin w-6 h-6 border-2 rounded-full mx-auto mb-3 ${
+                theme === 'dark' 
+                  ? 'border-white/20 border-t-white/60' 
+                  : 'border-gray-300 border-t-gray-700'
+              }`}></div>
               <p className="text-white/60">Loading notifications...</p>
             </div>
           ) : notifications.length === 0 ? (
@@ -196,7 +210,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
                       <div className="flex items-start justify-between">
                         <div 
                           className="flex-1 cursor-pointer"
-                          onClick={(e) => markAsRead(notification.id, e)}
+                          onClick={() => !notification.read && markAsRead(notification.id)}
                         >
                           <h3 className={`font-medium ${!notification.read ? "text-white" : "text-white/80"}`}>
                             {notification.title}
@@ -241,9 +255,10 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
           {notifications.length > 0 && (
             <button 
               onClick={clearAllNotifications}
-              className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-300 py-2 px-4 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
+              disabled={actionLoading}
+              className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-300 py-2 px-4 rounded-lg text-sm font-medium transition-colors border border-red-500/30 disabled:opacity-50"
             >
-              Clear All Notifications
+              {actionLoading ? "Processing..." : "Clear All Notifications"}
             </button>
           )}
         </div>

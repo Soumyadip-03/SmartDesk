@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Clock, Calendar, MapPin, Users, BookOpen } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Room {
   rNo: string;
@@ -25,21 +26,40 @@ export const CompactRoomBookingModal = ({
   onSchedule, 
   onWishlist
 }: CompactRoomBookingModalProps) => {
+  const { theme } = useTheme();
   const [bookingType, setBookingType] = useState<'swap' | 'later'>('swap');
-  const [formData, setFormData] = useState({
-    facultyName: JSON.parse(localStorage.getItem('user') || '{}').name || '',
-    courseSubject: '',
-    numberOfStudents: '',
-    date: new Date().toISOString().split('T')[0],
-    startTime: '',
-    endTime: '',
-    purpose: '',
-    notes: '',
-    currentRoom: '' // Current room user is leaving
+  const getCurrentDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today.toISOString().split('T')[0];
+  };
+  
+  const [formData, setFormData] = useState(() => {
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    
+    return {
+      facultyName: user.name || '',
+      courseSubject: '',
+      numberOfStudents: '',
+      date: getCurrentDate(),
+      startTime: '',
+      endTime: '',
+      purpose: '',
+      notes: '',
+      currentRoom: ''
+    };
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Force reset date to current date when modal opens
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      date: getCurrentDate()
+    }));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +104,11 @@ export const CompactRoomBookingModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-4 w-full max-w-xl max-h-[95vh] overflow-y-auto border border-white/20">
+      <div className={`rounded-xl p-4 w-full max-w-xl max-h-[95vh] overflow-y-auto border ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-white/20'
+          : 'bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600 shadow-2xl'
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -211,7 +235,17 @@ export const CompactRoomBookingModal = ({
                   name="date"
                   value={formData.date}
                   onChange={handleInputChange}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={getCurrentDate()}
+                  onInput={(e) => {
+                    const selectedDate = new Date(e.currentTarget.value);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (selectedDate < today) {
+                      e.currentTarget.value = getCurrentDate();
+                      setFormData(prev => ({ ...prev, date: getCurrentDate() }));
+                    }
+                  }}
+                  max="2030-12-31"
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   required
                 />

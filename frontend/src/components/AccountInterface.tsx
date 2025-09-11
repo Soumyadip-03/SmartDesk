@@ -1,6 +1,7 @@
 import { Calendar, Save, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SharedSidebar } from "./SharedSidebar";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface AccountInterfaceProps {
   onClose: () => void;
@@ -17,6 +18,7 @@ interface AccountInterfaceProps {
 }
 
 export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNotifications, onAdmin, onLogout, onUserNameUpdate, bookings = [], wishlistCount = 0, onShowBookings }: AccountInterfaceProps) {
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("profile");
   const [profileData, setProfileData] = useState({
     username: '',
@@ -123,11 +125,17 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
         return (
           <div className="space-y-6">
             {/* Profile Header */}
-            <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className={`backdrop-blur-sm rounded-2xl p-6 border ${
+              theme === 'dark'
+                ? 'bg-gradient-to-r from-white/10 to-white/5 border-white/10'
+                : 'bg-gradient-to-r from-gray-800/90 to-gray-700/90 border-gray-600 shadow-lg'
+            }`}>
               <div className="flex items-start gap-6">
                 {/* Profile Picture */}
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm border-2 border-white/20 rounded-full flex items-center justify-center">
+                  <div className={`w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm border-2 rounded-full flex items-center justify-center ${
+                    theme === 'dark' ? 'border-white/20' : 'border-gray-400'
+                  }`}>
                     <User className="w-12 h-12 text-white/80" />
                   </div>
                   <button 
@@ -196,7 +204,11 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
             </div>
 
             {/* Personal Info Section */}
-            <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className={`backdrop-blur-sm rounded-2xl p-6 border ${
+              theme === 'dark'
+                ? 'bg-gradient-to-r from-white/10 to-white/5 border-white/10'
+                : 'bg-gradient-to-r from-gray-800/90 to-gray-700/90 border-gray-600 shadow-lg'
+            }`}>
               <h3 className="text-white text-lg font-medium mb-4">Personal Information</h3>
               <div className="space-y-4">
                 <div>
@@ -259,7 +271,11 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
             </div>
 
             {/* Account Info Section */}
-            <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <div className={`backdrop-blur-sm rounded-2xl p-6 border ${
+              theme === 'dark'
+                ? 'bg-gradient-to-r from-white/10 to-white/5 border-white/10'
+                : 'bg-gradient-to-r from-gray-800/90 to-gray-700/90 border-gray-600 shadow-lg'
+            }`}>
               <h3 className="text-white text-lg font-medium mb-4">Account Information</h3>
               <div className="space-y-4">
                 <div>
@@ -301,7 +317,11 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
       case "bookings":
         return (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center">
+            <div className={`backdrop-blur-sm rounded-2xl p-8 border text-center ${
+              theme === 'dark'
+                ? 'bg-gradient-to-r from-white/10 to-white/5 border-white/10'
+                : 'bg-gradient-to-r from-gray-800/90 to-gray-700/90 border-gray-600 shadow-lg'
+            }`}>
               <Calendar className="w-16 h-16 text-white/60 mx-auto mb-4" />
               <h3 className="text-white text-xl font-medium mb-2">
                 {bookings.length > 0 ? `${bookings.length} Bookings` : 'No Bookings Yet'}
@@ -331,7 +351,11 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white z-50">
+    <div className={`fixed inset-0 z-50 transition-colors duration-300 ${
+      theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'
+    }`}>
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aT0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
       

@@ -2,6 +2,7 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 import { createNotificationForAllUsers } from './notifications.js';
+import { emitRoomStatusChange, emitBookingUpdate } from '../socket/socketHandler.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -53,14 +54,27 @@ router.post('/swap', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Room details and current room are required for swap' });
     }
     
+    // Parse currentRoom format: "buildingNumber-roomNumber" or just "roomNumber"
+    let currentRoomNumber, currentBuildingNumber;
+    if (currentRoom.includes('-')) {
+      const [bNum, rNum] = currentRoom.split('-');
+      currentBuildingNumber = parseInt(bNum);
+      currentRoomNumber = rNum;
+    } else {
+      // Same building if no building number specified
+      currentBuildingNumber = parseInt(buildingNumber);
+      currentRoomNumber = currentRoom;
+    }
+    
     const now = new Date();
     
     // Find the current active booking to get time details
     const currentBooking = await prisma.booking.findFirst({
       where: {
         fId: req.user.facultyId,
-        rNo: currentRoom,
-        status: 'confirmed',
+        rNo: currentRoomNumber,
+        bNo: currentBuildingNumber,
+        status: { in: ['confirmed', 'ongoing'] },
         startTime: { lte: now },
         endTime: { gte: now }
       },
@@ -68,7 +82,7 @@ router.post('/swap', authenticateToken, async (req, res) => {
     });
     
     if (!currentBooking) {
-      return res.status(400).json({ error: `No active booking found in room ${currentRoom}. Make sure you have an active booking in that room.` });
+      return res.status(400).json({ error: `No active booking found in room ${currentRoomNumber} (Building ${currentBuildingNumber}). Make sure you have an active booking in that room.` });
     }
     
     // Prevent swapping to the same room
@@ -104,7 +118,8 @@ router.post('/swap', authenticateToken, async (req, res) => {
       });
     }
     
-    // Create the swap booking first
+    // Create the swap booking with ongoing status if currently active
+    const isCurrentlyActive = now >= startDateTime && now <= endDateTime;
     const booking = await prisma.booking.create({
       data: {
         fId: req.user.facultyId,
@@ -113,7 +128,7 @@ router.post('/swap', authenticateToken, async (req, res) => {
         date: swapDate,
         startTime: startDateTime,
         endTime: endDateTime,
-        status: 'confirmed',
+        status: isCurrentlyActive ? 'ongoing' : 'confirmed',
         subject: courseSubject || purpose || currentBooking.subject,
         numberOfStudents: numberOfStudents ? parseInt(numberOfStudents) : currentBooking.numberOfStudents,
         notes: notes || currentBooking.notes,
@@ -122,22 +137,22 @@ router.post('/swap', authenticateToken, async (req, res) => {
       }
     });
     
-    // Cancel the current booking only after successful new booking creation
+    // Mark the current booking as swapped
     await prisma.booking.update({
       where: { bookingId: currentBooking.bookingId },
       data: {
-        status: 'cancelled',
+        status: 'swapped',
         updatedAt: new Date()
       }
     });
     
-    // Update room statuses in database for immediate consistency
+    // Update room statuses in database
     // Check if old room has any other active bookings
     const otherBookingsInOldRoom = await prisma.booking.findFirst({
       where: {
-        rNo: currentRoom,
-        bNo: currentBooking.bNo,
-        status: 'confirmed',
+        rNo: currentRoomNumber,
+        bNo: currentBuildingNumber,
+        status: { in: ['confirmed', 'ongoing'] },
         startTime: { lte: now },
         endTime: { gte: now },
         bookingId: { not: currentBooking.bookingId }
@@ -148,8 +163,8 @@ router.post('/swap', authenticateToken, async (req, res) => {
     if (!otherBookingsInOldRoom) {
       await prisma.room.updateMany({
         where: {
-          rNo: currentRoom,
-          bNo: currentBooking.bNo
+          rNo: currentRoomNumber,
+          bNo: currentBuildingNumber
         },
         data: { rStatus: 'Available' }
       });
@@ -163,8 +178,6 @@ router.post('/swap', authenticateToken, async (req, res) => {
       },
       data: { rStatus: 'Booked' }
     });
-    
-    // Room status will be determined dynamically based on active bookings
 
     // Get user name for notification
     const user = await prisma.user.findUnique({
@@ -184,6 +197,12 @@ router.post('/swap', authenticateToken, async (req, res) => {
       false
     );
 
+    // Emit real-time updates for both rooms and bookings
+    emitRoomStatusChange(currentBuildingNumber, currentRoomNumber, 'Available');
+    emitRoomStatusChange(buildingNumber, roomNumber, 'Booked');
+    emitBookingUpdate(req.user.facultyId, booking);
+    emitBookingUpdate(req.user.facultyId, { ...currentBooking, status: 'swapped' });
+    
     console.log('Room swap booking created:', booking);
     res.json(booking);
   } catch (error) {
@@ -250,14 +269,17 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     });
     
-    // Update room status to Booked
-    await prisma.room.updateMany({
-      where: {
-        rNo: roomNumber,
-        bNo: parseInt(buildingNumber)
-      },
-      data: { rStatus: 'Booked' }
-    });
+    // Only update room status to Booked if booking starts now or already started
+    const now = new Date();
+    if (startDateTime <= now) {
+      await prisma.room.updateMany({
+        where: {
+          rNo: roomNumber,
+          bNo: parseInt(buildingNumber)
+        },
+        data: { rStatus: 'Booked' }
+      });
+    }
 
     // Get user name for notification
     const user = await prisma.user.findUnique({
@@ -275,6 +297,10 @@ router.post('/', authenticateToken, async (req, res) => {
       false
     );
 
+    // Emit real-time updates
+    emitRoomStatusChange(buildingNumber, roomNumber, 'Booked');
+    emitBookingUpdate(req.user.facultyId, booking);
+    
     console.log('Booking created:', booking);
     res.json(booking);
   } catch (error) {
@@ -329,6 +355,10 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
       false
     );
 
+    // Emit real-time updates
+    emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');
+    emitBookingUpdate(req.user.facultyId, { ...booking, status: 'cancelled' });
+    
     console.log('Booking cancelled:', req.params.id);
     res.json({ message: 'Booking cancelled successfully' });
   } catch (error) {
@@ -351,7 +381,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    // Update room status to Available before deleting
+    // Update room status to Available
     await prisma.room.updateMany({
       where: {
         rNo: booking.rNo,
@@ -381,6 +411,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       false
     );
 
+    // Emit real-time updates
+    emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');
+    
     console.log('Booking deleted:', req.params.id);
     res.json({ message: 'Booking deleted successfully' });
   } catch (error) {
@@ -568,6 +601,39 @@ router.get('/active', authenticateToken, async (req, res) => {
     res.json(activeBookings);
   } catch (error) {
     console.error('Active bookings error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all bookings for a building on a specific date
+router.get('/building/:buildingNumber', authenticateToken, async (req, res) => {
+  try {
+    const { buildingNumber } = req.params;
+    const { date } = req.query;
+
+    if (!buildingNumber) {
+      return res.status(400).json({ error: 'Building number is required' });
+    }
+
+    const bookingDate = date ? new Date(date) : new Date();
+
+    // Get all confirmed bookings for the building on the specified date
+    const buildingBookings = await prisma.booking.findMany({
+      where: {
+        bNo: parseInt(buildingNumber),
+        date: bookingDate,
+        status: 'confirmed'
+      },
+      include: {
+        user: {
+          select: { fName: true }
+        }
+      }
+    });
+
+    res.json(buildingBookings);
+  } catch (error) {
+    console.error('Building bookings error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
