@@ -72,26 +72,17 @@ export const RealTimeUpdates = ({
   }, []);
 
   return (
-    <div className="fixed bottom-4 right-4 z-40">
-      <div className={`px-3 py-2 rounded-lg text-xs font-medium backdrop-blur-sm transition-all duration-500 ${
+    <div className="fixed bottom-4 left-4 z-40">
+      <div className={`px-2 py-1 rounded text-xs font-medium backdrop-blur-sm transition-all duration-500 ${
         isConnected 
           ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
           : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
       }`}>
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${
+        <div className="flex items-center gap-1">
+          <div className={`w-1.5 h-1.5 rounded-full ${
             isConnected ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'
           }`}></div>
-          <span>{isConnected ? 'Real-time' : 'Connecting...'}</span>
-          {isConnected && (
-            <span className="text-green-200/60 text-xs">
-              {lastUpdate.toLocaleTimeString('en-US', { 
-                hour12: false, 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </span>
-          )}
+          <span className="text-xs">{isConnected ? 'Live' : 'Connecting'}</span>
         </div>
       </div>
     </div>

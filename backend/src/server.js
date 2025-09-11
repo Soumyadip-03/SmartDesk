@@ -10,6 +10,8 @@ import wishlistRoutes from './routes/wishlist.js';
 import notificationRoutes from './routes/notifications.js';
 import analyticsRoutes from './routes/analytics.js';
 import roomRoutes from './routes/rooms.js';
+import chatbotRoutes from './routes/chatbot.js';
+import healthRoutes from './routes/health.js';
 import { authenticateToken } from './middleware/auth.js';
 import { sanitizeForLog } from './utils/sanitize.js';
 import { initializeSocket } from './socket/socketHandler.js';
@@ -49,6 +51,7 @@ app.get('/health', (req, res) => {
 
 // Public routes (no auth required)
 app.use('/api/auth', authRoutes);
+app.use('/api/health', healthRoutes);
 
 // Protected routes (auth required)
 app.use('/api/buildings', authenticateToken, buildingRoutes);
@@ -57,6 +60,7 @@ app.use('/api/wishlist', authenticateToken, wishlistRoutes);
 app.use('/api/notifications', authenticateToken, notificationRoutes);
 app.use('/api/analytics', authenticateToken, analyticsRoutes);
 app.use('/api/rooms', authenticateToken, roomRoutes);
+app.use('/api/chatbot', authenticateToken, chatbotRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -71,6 +75,13 @@ server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   console.log(`🌐 API available at: http://localhost:${PORT}/api`);
   console.log(`🔌 Socket.io ready for real-time updates`);
+  
+  // Check AI Chatbot status
+  if (process.env.GEMINI_API_KEY) {
+    console.log(`🤖 AI Chatbot: ACTIVATED (Gemini API connected)`);
+  } else {
+    console.log(`❌ AI Chatbot: DISABLED (No Gemini API key found)`);
+  }
   
   // Start booking scheduler
   startBookingScheduler();

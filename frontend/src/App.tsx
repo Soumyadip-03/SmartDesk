@@ -18,6 +18,7 @@ import { Toast } from "./components/Toast";
 import { RealTimeUpdates } from "./components/RealTimeUpdates";
 import { apiService } from "./services/api";
 import { ASSETS, AudioManager } from "./utils/assets";
+import { ChatBotToggle } from "./components/ChatBotToggle";
 
 interface WishlistRoom {
   rNo: string;
@@ -784,6 +785,9 @@ export default function App() {
           onClose={handleCloseToast}
         />
       )}
+
+      {/* AI Chatbot */}
+      <ChatBotToggle />
         </div>
       </AuthGuard>
     </ErrorBoundary>

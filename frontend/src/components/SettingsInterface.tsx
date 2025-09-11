@@ -666,7 +666,7 @@ export function SettingsInterface({ onClose, onHome, onAccount, onAdmin, onLogou
               <h2 className="text-xl font-medium text-white mb-4">About SmartDesk</h2>
               <div className="space-y-2 text-white/80">
                 <p>Version: 1.0.0</p>
-                <p>Build: 2025.09.01</p>
+                <p>Build: 2025.09.09</p>
                 <p>© 2025 SmartDesk. All rights reserved.</p>
               </div>
             </div>
