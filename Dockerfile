@@ -13,10 +13,7 @@ RUN npm ci
 # Copy backend source code
 COPY backend/ ./
 
-# Copy database schema
-COPY database/schema.prisma ./prisma/
-
-# Generate Prisma client
+# Generate Prisma client (schema already copied with backend/)
 RUN npx prisma generate
 
 # Expose port
