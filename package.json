@@ -1,6 +1,9 @@
 {
-  "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "prisma": "^6.15.0"
-  }
+  "name": "smartdesk",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "install": "cd backend && npm install"
+  },
+  "workspaces": ["backend", "frontend"]
 }

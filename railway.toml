@@ -2,8 +2,8 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "npm start"
-workingDirectory = "backend"
+startCommand = "node src/server.js"
+watchPatterns = ["backend/**"]
 
 [build.env]
 NODE_ENV = "production"
