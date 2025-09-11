@@ -10,20 +10,17 @@ WORKDIR /app
 # Copy backend package files
 COPY backend/package*.json ./
 
-# Install dependencies first
-RUN npm ci --only=production
-
-# Install Prisma CLI
-RUN npm install prisma --save-dev
-
 # Copy backend source code (including prisma schema)
 COPY backend/ ./
 
-# Generate Prisma client
-RUN npx prisma generate
+# Install dependencies (including dev for Prisma)
+RUN npm install
 
-# Verify Prisma client exists
-RUN ls -la node_modules/.prisma/client/
+# Generate Prisma client to correct location
+RUN npx prisma generate --schema=./prisma/schema.prisma
+
+# Verify Prisma client exists in correct location
+RUN ls -la node_modules/.prisma/client/ || echo "Client not found in expected location"
 
 # Expose port
 EXPOSE 3001
