@@ -4,3 +4,5 @@ docs/
 config/
 *.md
 .git/
+package-lock.json
+node_modules/
