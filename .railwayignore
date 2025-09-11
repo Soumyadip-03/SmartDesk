@@ -1,0 +1,6 @@
+frontend/
+database/
+docs/
+config/
+*.md
+.git/
