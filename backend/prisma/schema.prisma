@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../backend/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Establishment {
+  eId       String @id @map("E_ID")
+  eName     String @map("E_Name")
+  eEmail    String? @unique @map("E_Email")
+  
+  users     User[]
+  buildings Building[]
+  
+  @@map("establishments")
+}
+
+model Building {
+  bNo       Int    @id @default(autoincrement()) @map("B_NO")
+  bName     String @map("B_Name")
+  eId       String @map("E_ID")
+  
+  establishment Establishment @relation(fields: [eId], references: [eId], onDelete: Cascade)
+  rooms         Room[]
+  
+  @@map("buildings")
+}
+
+model Room {
+  bNo      Int     @map("B_NO")
+  rNo      String  @map("R_NO")
+  capacity Int?    @map("Capacity")
+  rType    String? @map("R_Type")
+  rStatus  String? @map("R_Status")
+  rTag     String? @map("R_Tag")
+  
+  building  Building   @relation(fields: [bNo], references: [bNo], onDelete: Cascade)
+  bookings  Booking[]
+  wishlist  Wishlist[]
+  
+  @@id([bNo, rNo])
+  @@map("rooms")
+}
+
+model User {
+  fId            String    @id @map("F_ID")
+  fName          String    @map("F_Name")
+  eId            String?   @map("E_ID")
+  fUsername      String    @unique @map("F_Username")
+  fEmail         String    @unique @map("F_Email")
+  fPassword      String    @map("F_Password")
+  fDepartment    String?   @map("F_Department")
+  fRole          String?   @map("F_Role")
+  createdAt      DateTime  @default(now()) @map("Created_At") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @updatedAt @map("Updated_At") @db.Timestamptz
+  phoneNumber    String?   @map("Phone_Number")
+  profilePicture String?   @map("Profile_Picture")
+  
+  establishment  Establishment? @relation(fields: [eId], references: [eId], onDelete: SetNull)
+  settings       UserSettings?
+  bookings       Booking[]
+  wishlist       Wishlist[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  
+  @@map("users")
+}
+
+model UserSettings {
+  fId           String   @id @map("F_ID")
+  theme         String?  @map("Theme")
+  notifications Boolean? @default(true) @map("Notifications")
+  language      String?  @map("Language")
+  createdAt     DateTime @default(now()) @map("Created_At") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("Updated_At") @db.Timestamptz
+  
+  user User @relation(fields: [fId], references: [fId], onDelete: Cascade)
+  
+  @@map("user_settings")
+}
+
+model Booking {
+  bookingId        Int      @id @default(autoincrement()) @map("Booking_ID")
+  fId              String   @map("F_ID")
+  bNo              Int      @map("B_NO")
+  rNo              String   @map("R_NO")
+  date             DateTime @map("Date") @db.Date
+  startTime        DateTime @map("Start_Time") @db.Timestamptz
+  endTime          DateTime @map("End_Time") @db.Timestamptz
+  status           String   @default("pending") @map("Status")
+  subject          String?  @map("Subject")
+  numberOfStudents Int?     @map("Number_Of_Students")
+  notes            String?  @map("Notes")
+  createdAt        DateTime @default(now()) @map("Created_At") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @updatedAt @map("Updated_At") @db.Timestamptz
+  
+  user User @relation(fields: [fId], references: [fId], onDelete: Cascade)
+  room Room @relation(fields: [bNo, rNo], references: [bNo, rNo], onDelete: Cascade)
+  
+  @@unique([bNo, rNo, date, startTime, endTime], name: "unique_booking")
+  @@map("bookings")
+}
+
+model Wishlist {
+  fId       String   @map("F_ID")
+  bNo       Int      @map("B_NO")
+  rNo       String   @map("R_NO")
+  createdAt DateTime @default(now()) @map("Created_At") @db.Timestamptz
+  
+  user User @relation(fields: [fId], references: [fId], onDelete: Cascade)
+  room Room @relation(fields: [bNo, rNo], references: [bNo, rNo], onDelete: Cascade)
+  
+  @@id([fId, bNo, rNo])
+  @@map("wishlist")
+}
+
+model Notification {
+  notificationId Int      @id @default(autoincrement()) @map("Notification_ID")
+  fId            String   @map("F_ID")
+  type           String?  @map("Type")
+  title          String?  @map("Title")
+  message        String?  @map("Message")
+  isRead         Boolean  @default(false) @map("Is_Read")
+  urgent         Boolean  @default(false) @map("Urgent")
+  createdAt      DateTime @default(now()) @map("Created_At") @db.Timestamptz
+  
+  user User @relation(fields: [fId], references: [fId], onDelete: Cascade)
+  
+  @@index([fId, createdAt])
+  @@index([fId, isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  auditId       Int       @id @default(autoincrement()) @map("Audit_ID")
+  fId           String    @map("F_ID")
+  fEmail        String?   @map("F_Email")
+  action        String    @map("Action")
+  ipAddress     String?   @map("IP_Address")
+  userAgent     String?   @map("User_Agent")
+  sessionId     String?   @map("Session_ID")
+  success       Boolean?  @map("Success")
+  failureReason String?   @map("Failure_Reason")
+  details       String?   @map("Details")
+  createdAt     DateTime  @default(now()) @map("Created_At") @db.Timestamptz
+  expireAt      DateTime? @map("Expire_At") @db.Timestamptz
+  
+  user User @relation(fields: [fId], references: [fId], onDelete: Cascade)
+  
+  @@unique([fId, sessionId, createdAt], name: "unique_log")
+  @@map("audit_logs")
+}

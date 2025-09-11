@@ -7,11 +7,17 @@ WORKDIR /app
 # Copy backend package files
 COPY backend/package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev for Prisma)
+RUN npm ci
 
 # Copy backend source code
 COPY backend/ ./
+
+# Copy database schema
+COPY database/schema.prisma ./prisma/
+
+# Generate Prisma client
+RUN npx prisma generate
 
 # Expose port
 EXPOSE 3001
