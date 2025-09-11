@@ -1,0 +1,10 @@
+frontend/
+database/
+docs/
+config/
+*.md
+.git/
+.env.example
+start-app.bat
+node_modules/
+package-lock.json
