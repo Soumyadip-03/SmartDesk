@@ -1,4 +1,4 @@
-import { Palette, Moon, Sun, Monitor, Volume2, Bell, Shield, Globe } from "lucide-react";
+import { Palette, Moon, Sun, Monitor, Bell, Shield, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SharedSidebar } from "./SharedSidebar";
 import { useTheme } from "../contexts/ThemeContext";
@@ -75,41 +75,6 @@ export function SettingsInterface({ onClose, onHome, onAccount, onAdmin, onLogou
       stopBookingReminderSystem();
     };
   }, []);
-
-  const applyTheme = (selectedTheme: string) => {
-    const root = document.documentElement;
-    const body = document.body;
-    
-    // Remove all theme classes
-    root.classList.remove("dark", "light");
-    body.classList.remove("dark-theme", "light-theme");
-    
-    if (selectedTheme === "light") {
-      root.classList.add("light");
-      body.classList.add("light-theme");
-      body.style.background = "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)";
-      body.style.color = "#1e293b";
-    } else if (selectedTheme === "dark") {
-      root.classList.add("dark");
-      body.classList.add("dark-theme");
-      body.style.background = "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)";
-      body.style.color = "#f8fafc";
-    } else {
-      // System theme
-      const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (systemPrefersDark) {
-        root.classList.add("dark");
-        body.classList.add("dark-theme");
-        body.style.background = "linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)";
-        body.style.color = "#f8fafc";
-      } else {
-        root.classList.add("light");
-        body.classList.add("light-theme");
-        body.style.background = "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)";
-        body.style.color = "#1e293b";
-      }
-    }
-  };
 
   const handleThemeChange = async (selectedTheme: string) => {
     setLocalTheme(selectedTheme);
@@ -341,7 +306,7 @@ export function SettingsInterface({ onClose, onHome, onAccount, onAdmin, onLogou
               <button
                 onClick={() => handleThemeChange("system")}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-                  theme === "system" 
+                  localTheme === "system" 
                     ? "bg-white/30 border border-white/40" 
                     : "bg-white/10 border border-white/20 hover:bg-white/20"
                 }`}

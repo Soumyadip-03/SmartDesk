@@ -14,25 +14,22 @@ interface Booking {
   startTime: string;
   endTime: string;
   notes: string;
+  purpose?: string;
   status: 'confirmed' | 'pending' | 'cancelled' | 'ongoing' | 'finished' | 'swapped';
 }
 
 interface BookingsInterfaceProps {
   bookings: Booking[];
-  onClose: () => void;
   onHome?: () => void;
   onCancelBooking: (bookingId: string) => void;
   onDeleteBooking: (bookingId: string) => void;
-  onBookingUpdate?: (updatedBookings: Booking[]) => void;
 }
 
 export function BookingsInterface({ 
   bookings, 
-  onClose, 
   onHome,
   onCancelBooking,
-  onDeleteBooking,
-  onBookingUpdate
+  onDeleteBooking
 }: BookingsInterfaceProps) {
   const { theme } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -179,10 +176,11 @@ export function BookingsInterface({
     const statusA = getBookingStatus(a);
     const statusB = getBookingStatus(b);
     
-    // Priority order: ongoing > confirmed > finished > cancelled/swapped
-    const statusPriority = {
+    // Priority order: ongoing > confirmed > pending > finished > cancelled/swapped
+    const statusPriority: Record<string, number> = {
       'ongoing': 1,
-      'confirmed': 2, 
+      'confirmed': 2,
+      'pending': 2,
       'finished': 3,
       'cancelled': 4,
       'swapped': 4

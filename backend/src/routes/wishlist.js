@@ -1,7 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-import { validateCSRFToken } from '../middleware/csrf.js';
+
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -26,8 +26,11 @@ router.get('/', authenticateToken, async (req, res) => {
         }
       }
     });
-    res.json(wishlist);
+    
+    const validWishlist = wishlist.filter(item => item.room !== null);
+    res.json(validWishlist);
   } catch (error) {
+    console.error('Wishlist fetch error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -58,6 +61,7 @@ router.post('/', authenticateToken, async (req, res) => {
     });
     res.json(wishlistItem);
   } catch (error) {
+    console.error('Wishlist add error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -79,6 +83,7 @@ router.delete('/:roomNumber/:buildingNumber', authenticateToken, async (req, res
     
     res.json({ message: 'Removed from wishlist' });
   } catch (error) {
+    console.error('Wishlist delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

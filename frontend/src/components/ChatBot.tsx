@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, X, MessageCircle, Minimize2, Maximize2 } from 'lucide-react';
+import { Send, X, Minimize2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface Message {
@@ -26,7 +26,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
       if (stored && storedDate === today) {
         const parsedMessages = JSON.parse(stored);
         // Ensure timestamps are Date objects
-        return parsedMessages.map(msg => ({
+        return parsedMessages.map((msg: any) => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }));

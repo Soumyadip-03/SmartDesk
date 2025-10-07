@@ -1,8 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
-
 async function main() {
+  const { PrismaClient } = require('@prisma/client');
+  const bcrypt = require('bcryptjs');
+  const prisma = new PrismaClient();
   try {
     // Insert Establishment first
     await prisma.establishment.create({
@@ -14,6 +13,9 @@ async function main() {
     });
 
     // Insert Admin User
+    const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    
     await prisma.user.create({
       data: {
         fId: 'ADMIN/01',
@@ -21,7 +23,7 @@ async function main() {
         eId: 'BWU/2016',
         fUsername: 'Soumyadip',
         fEmail: 'admin@smartdesk.com',
-        fPassword: '$2a$10$oemjbohIr1DvApWJJOXg9uRk3XYT97vGoEiCf6h7B1DjmjBoV4mIm',
+        fPassword: hashedPassword,
         fDepartment: 'B.TECH',
         fRole: 'admin',
         phoneNumber: '9123930450',

@@ -1,11 +1,13 @@
 import express from 'express';  
 import { PrismaClient } from '@prisma/client';
+import { authenticateToken } from '../middleware/auth.js';
+
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // Get user login patterns
-router.get('/user-activity/:userId', async (req, res) => {
+router.get('/user-activity/:userId', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
     const logs = await prisma.auditLog.findMany({
@@ -21,7 +23,7 @@ router.get('/user-activity/:userId', async (req, res) => {
 });
 
 // Get failed login attempts
-router.get('/security/failed-logins', async (req, res) => {
+router.get('/security/failed-logins', authenticateToken, async (req, res) => {
   try {
     const failedLogins = await prisma.auditLog.findMany({
       where: { 
@@ -87,7 +89,7 @@ router.get('/sessions/active', async (req, res) => {
 });
 
 // Cleanup old logs
-router.post('/cleanup', async (req, res) => {
+router.post('/cleanup', authenticateToken, async (req, res) => {
   try {
     const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
     const result = await prisma.auditLog.deleteMany({

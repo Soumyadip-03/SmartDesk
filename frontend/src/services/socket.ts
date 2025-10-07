@@ -54,16 +54,6 @@ class SocketService {
     }
   }
 
-  private handleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      setTimeout(() => {
-        console.log(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-        this.connect();
-      }, 1000);
-    }
-  }
-
   // Room status events
   onRoomStatusChanged(callback: (data: { buildingNumber: string; roomNumber: string; status: string }) => void) {
     this.socket?.on('roomStatusChanged', callback);
@@ -89,7 +79,7 @@ class SocketService {
   }
 
   // Remove listeners
-  off(event: string, callback?: Function) {
+  off(event: string, callback?: (...args: any[]) => void) {
     this.socket?.off(event, callback);
   }
 

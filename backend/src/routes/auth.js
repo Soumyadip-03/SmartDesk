@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { sanitizeInput } from '../utils/sanitize.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -9,48 +10,52 @@ const prisma = new PrismaClient();
 router.post('/register', async (req, res) => {
   try {
     const { email, name, establishmentId, facultyId, password } = req.body;
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedName = sanitizeInput(name);
+    const sanitizedEstablishmentId = sanitizeInput(establishmentId);
+    const sanitizedFacultyId = sanitizeInput(facultyId);
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
     
     // Validate required fields
-    if (!email || !name || !establishmentId || !facultyId || !password) {
+    if (!sanitizedEmail || !sanitizedName || !sanitizedEstablishmentId || !sanitizedFacultyId || !password) {
       return res.status(400).json({ error: 'All fields are required: email, name, establishment ID, faculty ID, and password' });
     }
     
     // Check if email already exists
     const existingEmail = await prisma.user.findUnique({
-      where: { fEmail: email }
+      where: { fEmail: sanitizedEmail }
     });
     if (existingEmail) {
-      return res.status(400).json({ error: `Email '${email}' is already registered. Please use a different email address.` });
+      return res.status(400).json({ error: 'Email is already registered. Please use a different email address.' });
     }
     
     // Check if faculty ID already exists
     const existingFacultyId = await prisma.user.findUnique({
-      where: { fId: facultyId }
+      where: { fId: sanitizedFacultyId }
     });
     if (existingFacultyId) {
-      return res.status(400).json({ error: `Faculty ID '${facultyId}' is already taken. Please use a different faculty ID.` });
+      return res.status(400).json({ error: 'Faculty ID is already taken. Please use a different faculty ID.' });
     }
     
     // Verify establishment exists
     const establishmentRecord = await prisma.establishment.findUnique({
-      where: { eId: establishmentId }
+      where: { eId: sanitizedEstablishmentId }
     });
     if (!establishmentRecord) {
-      return res.status(400).json({ error: `Establishment ID '${establishmentId}' does not exist. Please check with your administrator.` });
+      return res.status(400).json({ error: 'Establishment ID does not exist. Please check with your administrator.' });
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
     const user = await prisma.user.create({
       data: { 
-        fEmail: email, 
-        fName: name, 
-        fId: facultyId, 
+        fEmail: sanitizedEmail, 
+        fName: sanitizedName, 
+        fId: sanitizedFacultyId, 
         fPassword: hashedPassword,
-        eId: establishmentId,
-        fUsername: name.toLowerCase().replace(/\s+/g, ''),
+        eId: sanitizedEstablishmentId,
+        fUsername: sanitizedName.toLowerCase().replace(/\s+/g, ''),
         fRole: 'moderator'
       },
       include: {
@@ -118,56 +123,57 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    console.log('Login attempt received:', req.body.email);
     const { email, password } = req.body;
+    const sanitizedEmail = sanitizeInput(email);
+    console.log('Login attempt received');
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
     const sessionId = jwt.sign({ timestamp: Date.now() }, process.env.JWT_SECRET);
     
-    if (!email || !password) {
+    if (!sanitizedEmail || !password) {
       return res.status(400).json({ error: 'Email and password required' });
     }
     
     const user = await prisma.user.findUnique({ 
-      where: { fEmail: email },
+      where: { fEmail: sanitizedEmail },
       include: { establishment: true }
     });
     
     console.log('User found:', !!user);
     
     if (!user) {
-      console.log('Failed login attempt - user not found:', email);
+      console.log('Failed login attempt - user not found');
       
       // Log failed login attempt for non-existent user
       try {
         await prisma.auditLog.create({
           data: {
             fId: 'unknown',
-            fEmail: email,
+            fEmail: sanitizedEmail,
             action: 'FAILED_LOGIN',
             ipAddress,
             userAgent,
             sessionId,
             success: false,
             failureReason: 'Email not registered',
-            details: `Failed login attempt - email '${email}' is not registered`
+            details: 'Failed login attempt - email is not registered'
           }
         }).catch(() => {}); // Ignore errors for unknown users
       } catch (auditError) {
         // Ignore audit logging errors
       }
       
-      return res.status(401).json({ error: `Email '${email}' is not registered. Please sign up first or check your email address.` });
+      return res.status(401).json({ error: 'Email is not registered. Please sign up first or check your email address.' });
     }
     
     if (!await bcrypt.compare(password, user.fPassword)) {
-      console.log('Failed login attempt - wrong password:', email);
+      console.log('Failed login attempt - wrong password');
       
       // Log failed login attempt for wrong password
       await prisma.auditLog.create({
         data: {
           fId: user.fId,
-          fEmail: email,
+          fEmail: sanitizedEmail,
           action: 'FAILED_LOGIN',
           ipAddress,
           userAgent,
@@ -225,7 +231,7 @@ router.post('/login', async (req, res) => {
     
     const token = jwt.sign({ facultyId: user.fId }, process.env.JWT_SECRET);
     
-    console.log('Successful login for:', email, 'Role:', user.fRole);
+    console.log('Successful login - Role:', user.fRole);
     
     res.json({ 
       token, 
@@ -313,6 +319,9 @@ router.put('/profile', async (req, res) => {
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { name, department, phoneNumber, username, profilePicture } = req.body;
+    const sanitizedName = name ? sanitizeInput(name) : null;
+    const sanitizedDepartment = department ? sanitizeInput(department) : null;
+    const sanitizedUsername = username ? sanitizeInput(username) : null;
     
     console.log('📝 Profile update request:', {
       facultyId: decoded.facultyId,
@@ -326,10 +335,10 @@ router.put('/profile', async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { fId: decoded.facultyId },
       data: { 
-        fName: name || null, 
-        fDepartment: department || null, 
+        fName: sanitizedName, 
+        fDepartment: sanitizedDepartment, 
         phoneNumber: phoneNumber ? phoneNumber.toString() : null,
-        fUsername: username || null,
+        fUsername: sanitizedUsername,
         profilePicture: profilePicture || null
       },
       select: { 

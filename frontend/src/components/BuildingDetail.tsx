@@ -1,5 +1,5 @@
 import { ArrowLeft, Filter } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { CompactRoomBookingModal } from "./CompactRoomBookingModal";
 import { apiService } from "../services/api";
 import { socketService } from "../services/socket";
@@ -35,19 +35,6 @@ interface Room {
   floor?: number;
 }
 
-interface BookingData {
-  roomId: string;
-  roomNumber: string;
-  building: string;
-  facultyName: string;
-  courseSubject: string;
-  numberOfStudents: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  notes: string;
-}
-
 export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBooking }: BuildingDetailProps) {
   const { theme } = useTheme();
   const [roomTypeFilter, setRoomTypeFilter] = useState("all type");
@@ -56,7 +43,6 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [allRooms, setAllRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const roomTypes = [
@@ -216,22 +202,7 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
     fetchLiveData();
   }, [buildingNumber, generateStaticRooms]);
 
-  // Manual refresh function
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      const updatedRooms = await checkRoomCurrentStatus(allRooms);
-      setAllRooms(updatedRooms);
-      
-      const cacheKey = `building-${buildingNumber}`;
-      roomCache.set(cacheKey, updatedRooms);
-      setLastRefresh(new Date());
-    } catch (error) {
-      console.error('Failed to refresh rooms:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+
 
   // Listen for real-time room status changes via Socket.io
   useEffect(() => {
@@ -263,7 +234,7 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
     };
   }, [buildingNumber]);
 
-  // Timer to check room statuses every minute
+  // Timer to check room statuses every 5 seconds
   useEffect(() => {
     const timer = setInterval(async () => {
       const updatedRooms = await checkRoomCurrentStatus(allRooms);
@@ -271,7 +242,7 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
       const cacheKey = `building-${buildingNumber}`;
       roomCache.set(cacheKey, updatedRooms);
       setLastRefresh(new Date());
-    }, 60000); // Check every minute
+    }, 5000); // Check every 5 seconds
 
     return () => clearInterval(timer);
   }, [allRooms, buildingNumber]);
@@ -283,6 +254,18 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
   });
 
   const getStatusColor = (rStatus: string) => {
+    if (theme === 'light') {
+      switch (rStatus) {
+        case "Available":
+          return "bg-green-500 border-green-600 text-white shadow-md";
+        case "Booked":
+          return "bg-red-500 border-red-600 text-white shadow-md";
+        case "Maintenance":
+          return "bg-gray-600 border-gray-700 text-white shadow-md";
+        default:
+          return "bg-blue-500 border-blue-600 text-white shadow-md";
+      }
+    }
     switch (rStatus) {
       case "Available":
         return "bg-green-500/20 border-green-500/40 text-green-300";
@@ -346,72 +329,91 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
     }`}>
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMDMiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3BhdHRlcm4+CjwvZGVmcz4KPHI+PIKdlbCJ3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIiAvPgo8L3N2Zz4=')] opacity-30"></div>
       
-      <div className="relative z-10 p-6">
-        <div className="flex items-center gap-4 mb-8">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <ArrowLeft className={`w-6 h-6 ${
-              theme === 'dark' ? 'text-white' : 'text-gray-900'
-            }`} />
-          </button>
-          
-          <div className="flex-1 flex justify-center">
-            <div className={`backdrop-blur-sm rounded-full px-6 py-2 border ${
-              theme === 'dark'
-                ? 'bg-white/20 border-white/20'
-                : 'bg-gray-800/90 border-gray-600 shadow-lg'
-            }`}>
-              <span className="text-white font-medium">Book Your Room - B{buildingNumber}</span>
+      {/* Sticky Header */}
+      <div className={`sticky top-0 z-20 backdrop-blur-md border-b ${
+        theme === 'dark'
+          ? 'bg-gray-900/80 border-white/10'
+          : 'bg-white/80 border-gray-200'
+      }`}>
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <button 
+              onClick={onBack}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ArrowLeft className={`w-6 h-6 ${
+                theme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`} />
+            </button>
+            
+            <div className="flex-1 flex justify-center">
+              <div className={`backdrop-blur-sm rounded-full px-6 py-2 border ${
+                theme === 'dark'
+                  ? 'bg-white/20 border-white/20'
+                  : 'bg-gray-800/90 border-gray-600 shadow-lg'
+              }`}>
+                <span className="text-white font-medium">Book Your Room - B{buildingNumber}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className={`w-4 h-4 ${
+                theme === 'dark' ? 'text-white/60' : 'text-gray-900'
+              }`} />
+              <span className={`text-sm font-semibold ${
+                theme === 'dark' ? 'text-white/60' : 'text-gray-900'
+              }`}>Filters:</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className={`text-sm font-semibold ${
+                theme === 'dark' ? 'text-white/80' : 'text-gray-900'
+              }`}>Room Type:</label>
+              <select 
+                value={roomTypeFilter}
+                onChange={(e) => setRoomTypeFilter(e.target.value)}
+                className={`backdrop-blur-sm border rounded-lg px-3 py-1 text-sm font-medium focus:outline-none focus:ring-2 ${
+                  theme === 'dark'
+                    ? 'bg-white/20 border-white/20 text-white focus:ring-white/30'
+                    : 'bg-gray-800 border-gray-700 text-white focus:ring-blue-500'
+                }`}
+              >
+                {roomTypes.map(type => (
+                  <option key={type} value={type} className="bg-black/80 backdrop-blur-md text-white border-none">
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className={`text-sm font-semibold ${
+                theme === 'dark' ? 'text-white/80' : 'text-gray-900'
+              }`}>Room Status:</label>
+              <select 
+                value={roomStatusFilter}
+                onChange={(e) => setRoomStatusFilter(e.target.value)}
+                className={`backdrop-blur-sm border rounded-lg px-3 py-1 text-sm font-medium focus:outline-none focus:ring-2 ${
+                  theme === 'dark'
+                    ? 'bg-white/20 border-white/20 text-white focus:ring-white/30'
+                    : 'bg-gray-800 border-gray-700 text-white focus:ring-blue-500'
+                }`}
+              >
+                {roomStatuses.map(status => (
+                  <option key={status} value={status} className="bg-black/80 backdrop-blur-md text-white border-none">
+                    {status}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="mb-8 flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className={`w-4 h-4 ${
-              theme === 'dark' ? 'text-white/60' : 'text-gray-800'
-            }`} />
-            <span className={`text-sm ${
-              theme === 'dark' ? 'text-white/60' : 'text-gray-800'
-            }`}>Filters:</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <label className={`text-sm ${
-              theme === 'dark' ? 'text-white/80' : 'text-gray-900'
-            }`}>Room Type:</label>
-            <select 
-              value={roomTypeFilter}
-              onChange={(e) => setRoomTypeFilter(e.target.value)}
-              className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
-            >
-              {roomTypes.map(type => (
-                <option key={type} value={type} className="bg-black/80 backdrop-blur-md text-white border-none">
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className={`text-sm ${
-              theme === 'dark' ? 'text-white/80' : 'text-gray-900'
-            }`}>Room Status:</label>
-            <select 
-              value={roomStatusFilter}
-              onChange={(e) => setRoomStatusFilter(e.target.value)}
-              className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
-            >
-              {roomStatuses.map(status => (
-                <option key={status} value={status} className="bg-black/80 backdrop-blur-md text-white border-none">
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* Scrollable Content */}
+      <div className="relative z-10 p-6">
 
         <div className="space-y-4">
           <div className="flex items-center gap-3 mb-6">
@@ -424,13 +426,6 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
             </div>
             <div className="h-px bg-white/20 flex-1"></div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                {refreshing ? 'Refreshing...' : 'Refresh'}
-              </button>
               <span className={`text-sm ${
                 theme === 'dark' ? 'text-white/60' : 'text-gray-800'
               }`}>

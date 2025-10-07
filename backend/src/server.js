@@ -19,7 +19,6 @@ import { startBookingScheduler } from './utils/bookingScheduler.js';
 
 dotenv.config();
 
-// Set timezone to IST
 process.env.TZ = process.env.TZ || 'Asia/Kolkata';
 
 const app = express();
@@ -29,7 +28,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // CORS configuration
 app.use(cors({
   origin: isProduction ? 
-    ['https://smartdesk.yourdomain.com'] : 
+    [process.env.FRONTEND_URL || 'https://your-domain.com'] : 
     ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],

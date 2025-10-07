@@ -13,7 +13,6 @@ export const RealTimeUpdates = ({
   onNotification 
 }: RealTimeUpdatesProps) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -28,32 +27,28 @@ export const RealTimeUpdates = ({
     // Set up event listeners
     const handleConnect = () => {
       setIsConnected(true);
-      setLastUpdate(new Date());
     };
 
     const handleDisconnect = () => {
       setIsConnected(false);
     };
 
-    const handleRoomStatusChange = (data) => {
+    const handleRoomStatusChange = (data: any) => {
       if (onRoomStatusChange) {
         onRoomStatusChange(data.roomNumber, data.status);
       }
-      setLastUpdate(new Date());
     };
 
-    const handleBookingUpdate = (data) => {
+    const handleBookingUpdate = (data: any) => {
       if (onBookingUpdate) {
         onBookingUpdate(data.booking);
       }
-      setLastUpdate(new Date());
     };
 
-    const handleNewNotification = (data) => {
+    const handleNewNotification = (data: any) => {
       if (onNotification) {
         onNotification(data.notification);
       }
-      setLastUpdate(new Date());
     };
 
     socket.on('connect', handleConnect);

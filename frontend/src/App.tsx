@@ -10,7 +10,7 @@ import { NotificationPanel } from "./components/NotificationPanel";
 import { WishlistInterface } from "./components/WishlistInterface";
 import { BookingsInterface } from "./components/BookingsInterface";
 import { AuthGuard } from "./components/AuthGuard";
-import { lazy, Suspense } from "react";
+
 import { AdminDashboard } from "./components/AdminDashboard";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoadingSpinner } from "./components/LoadingSpinner";
@@ -53,6 +53,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState("");
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
   const handleCloseToast = useCallback(() => {
     setShowToast(false);
@@ -68,12 +69,18 @@ export default function App() {
 
   // Load user data when authenticated
   useEffect(() => {
+    if (!user) return;
+    if (isLoadingUserData) return;
+    
+    const abortController = new AbortController();
+    setIsLoadingUserData(true);
+    
     const loadUserData = async () => {
-      if (!user) return;
-      
       try {
         // Load wishlist from database
         const wishlistData = await apiService.getWishlist();
+        if (abortController.signal.aborted) return;
+        
         const formattedWishlist = wishlistData.map((item: any) => ({
           rNo: item.rNo,
           bNo: item.bNo,
@@ -85,6 +92,8 @@ export default function App() {
         
         // Load bookings from database
         const bookingsData = await apiService.getBookings();
+        if (abortController.signal.aborted) return;
+        
         const formattedBookings = bookingsData.map((booking: any) => ({
           id: booking.bookingId?.toString() || booking.id?.toString() || Date.now().toString(),
           roomNumber: booking.rNo || booking.roomNumber,
@@ -103,6 +112,8 @@ export default function App() {
         
         // Load unread notification count
         const unreadCount = await apiService.getUnreadNotificationCount();
+        if (abortController.signal.aborted) return;
+        
         setUnreadNotificationCount(unreadCount.count || 0);
         
         // Request notification permission and preload sound
@@ -110,13 +121,21 @@ export default function App() {
           Notification.requestPermission();
         }
         AudioManager.preloadSounds([ASSETS.SOUNDS.NOTIFICATION]);
-      } catch (error) {
-        console.error('Failed to load user data:', error);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Failed to load user data:', error);
+        }
+      } finally {
+        setIsLoadingUserData(false);
       }
     };
     
     loadUserData();
-  }, [user]);
+    
+    return () => {
+      abortController.abort();
+    };
+  }, [user?.id]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -135,10 +154,12 @@ export default function App() {
     { id: "6", name: "Building - 06", buildingNumber: "6", roomCount: 36 },
     { id: "7", name: "Building - 07", buildingNumber: "7", roomCount: 36 },
   ]);
-  const [buildingsLoading, setBuildingsLoading] = useState(false);
+  const [buildingsLoaded, setBuildingsLoaded] = useState(false);
 
   // Load buildings from API
   useEffect(() => {
+    if (!user || buildingsLoaded) return;
+    
     const loadBuildings = async () => {
       try {
         const buildingsData = await apiService.getBuildings();
@@ -153,13 +174,13 @@ export default function App() {
         }
       } catch (error) {
         console.error('Failed to load buildings:', error);
+      } finally {
+        setBuildingsLoaded(true);
       }
     };
 
-    if (user) {
-      loadBuildings();
-    }
-  }, [user]);
+    loadBuildings();
+  }, [user, buildingsLoaded]);
 
   const handleBuildingClick = (buildingNumber: string) => {
     setSelectedBuilding(buildingNumber);
@@ -185,11 +206,6 @@ export default function App() {
     setBookings([]);
     // Force page reload to reset AuthGuard state
     window.location.reload();
-  };
-
-  const handleLogin = (userData: any) => {
-    setUser(userData);
-    setUserName(userData.name);
   };
 
   const handleAddToWishlist = async (room: any) => {
@@ -294,7 +310,10 @@ export default function App() {
         purpose: bookingData.purpose || ''
       };
       
-      setBookings(prev => [...prev, formattedBooking]);
+      setBookings(prev => {
+        const exists = prev.find(b => b.id === formattedBooking.id);
+        return exists ? prev : [...prev, formattedBooking];
+      });
     } catch (error) {
       console.error('Failed to create booking:', error);
       throw error;
@@ -486,7 +505,7 @@ export default function App() {
 
         {/* Buildings Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {buildingsLoading ? (
+          {!buildingsLoaded ? (
             <div className="col-span-full">
               <LoadingSpinner size="lg" text="Loading buildings..." />
             </div>
@@ -678,7 +697,6 @@ export default function App() {
       {showBookingsInterface && (
         <BookingsInterface 
           bookings={bookings}
-          onClose={() => setShowBookingsInterface(false)}
           onHome={handleHome}
           onCancelBooking={handleCancelBooking}
           onDeleteBooking={handleDeleteBooking}

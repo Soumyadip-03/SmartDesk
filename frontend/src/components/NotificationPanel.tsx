@@ -1,4 +1,4 @@
-import { X, Bell, Clock, CheckCircle, AlertCircle, Calendar, User } from "lucide-react";
+import { X, Bell, Clock, CheckCircle, AlertCircle, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiService } from "../services/api";
 import { useTheme } from "../contexts/ThemeContext";

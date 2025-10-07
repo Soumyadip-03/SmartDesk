@@ -5,8 +5,16 @@ const prisma = new PrismaClient();
 
 class ChatbotService {
   constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY not found in environment variables');
+      this.genAI = null;
+      this.model = null;
+    } else {
+      console.log('Initializing Gemini AI with API key:', apiKey.substring(0, 10) + '...');
+      this.genAI = new GoogleGenerativeAI(apiKey);
+      this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    }
     
     // SmartDesk context and training data
     this.systemContext = `
@@ -73,6 +81,12 @@ ALWAYS INCLUDE:
 
   async generateResponse(userMessage, context = {}) {
     try {
+      // Check if Gemini is available
+      if (!this.model) {
+        console.log('Gemini model not available, using fallback');
+        return this.getFallbackResponse(userMessage, context);
+      }
+
       const prompt = `
 ${this.systemContext}
 
@@ -124,10 +138,16 @@ Provide a CONCISE, direct answer. Rules:
       return response.text();
       
     } catch (error) {
-      console.error('Chatbot generation error:', error);
-      
-      // Concise fallback responses with proper time formatting
-      const fallbackResponses = {
+      console.error('Chatbot generation error:', error.message);
+      return this.getFallbackResponse(userMessage, context);
+    }
+  }
+
+  getFallbackResponse(userMessage, context = {}) {
+    console.log('Using fallback response for:', userMessage);
+    
+    // Concise fallback responses with proper time formatting
+    const fallbackResponses = {
         'book': 'Select building → Choose room → Pick time → Add details → Confirm',
         'cancel': 'My Bookings → Find booking → Click Cancel (up to 15 min before)',
         'building': '7 buildings, 36 rooms each = 252 total rooms',
@@ -150,7 +170,6 @@ Provide a CONCISE, direct answer. Rules:
       }
       
       return 'Available help: bookings, buildings, rooms, settings. What do you need?';
-    }
   }
 
   async getContextualResponse(userMessage, userContext) {

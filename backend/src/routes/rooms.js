@@ -1,5 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import { authenticateToken } from '../middleware/auth.js';
+
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -54,7 +56,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update room type (Admin only)
-router.put('/:roomNumber/:buildingNumber/type', async (req, res) => {
+router.put('/:roomNumber/:buildingNumber/type', authenticateToken, async (req, res) => {
   try {
     const { roomNumber, buildingNumber } = req.params;
     const { roomType } = req.body;
@@ -84,7 +86,7 @@ router.put('/:roomNumber/:buildingNumber/type', async (req, res) => {
 });
 
 // Update room status (Admin only)
-router.put('/:roomNumber/:buildingNumber/status', async (req, res) => {
+router.put('/:roomNumber/:buildingNumber/status', authenticateToken, async (req, res) => {
   try {
     const { roomNumber, buildingNumber } = req.params;
     const { roomStatus } = req.body;
@@ -114,7 +116,7 @@ router.put('/:roomNumber/:buildingNumber/status', async (req, res) => {
 });
 
 // Update room capacity (Admin only)
-router.put('/:roomNumber/:buildingNumber/capacity', async (req, res) => {
+router.put('/:roomNumber/:buildingNumber/capacity', authenticateToken, async (req, res) => {
   try {
     const { roomNumber, buildingNumber } = req.params;
     const { capacity } = req.body;

@@ -5,8 +5,11 @@ const prisma = new PrismaClient();
 
 async function createAdmin() {
   try {
-    // Hash the password
-    const password = 'admin123'; // Change this to your desired password
+    const password = process.env.ADMIN_PASSWORD || process.argv[2];
+    if (!password) {
+      console.error('❌ Error: Password required. Set ADMIN_PASSWORD env var or pass as argument.');
+      process.exit(1);
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Find or create establishment
@@ -39,7 +42,6 @@ async function createAdmin() {
     
     console.log('✅ Admin user created successfully!');
     console.log('📧 Email: admin@smartdesk.com');
-    console.log('🔑 Password: admin123');
     console.log('🏢 Establishment:', establishment.name);
     
   } catch (error) {

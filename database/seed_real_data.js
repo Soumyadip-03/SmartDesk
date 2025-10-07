@@ -1,8 +1,7 @@
-const { PrismaClient } = require('../backend/node_modules/.prisma/client');
-
-const prisma = new PrismaClient();
-
 async function main() {
+  const { PrismaClient } = require('../backend/node_modules/.prisma/client');
+  const bcrypt = require('bcryptjs');
+  const prisma = new PrismaClient();
   try {
     console.log('🌱 Starting database seeding with REAL data...');
 
@@ -27,13 +26,16 @@ async function main() {
     });
 
     // Insert Real Users
+    const defaultPassword = process.env.DEFAULT_USER_PASSWORD || 'ChangeMe123!';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    
     const users = [
       {
         fId: 'ADMIN/01',
         fName: 'Soumyadip Khan Sarkar',
         fUsername: 'Soumyadip',
         fEmail: 'admin@smartdesk.com',
-        fPassword: '$2a$10$oemjbohIr1DvApWJJOXg9uRk3XYT97vGoEiCf6h7B1DjmjBoV4mIm',
+        fPassword: hashedPassword,
         fDepartment: 'B.TECH',
         fRole: 'admin',
         phoneNumber: '9123930450'
@@ -43,7 +45,7 @@ async function main() {
         fName: 'Rajdeep De',
         fUsername: 'Rajdeep',
         fEmail: 'rajdeepde789@gmail.com',
-        fPassword: '$2a$10$CqmXHMdJGDlNPVV6FlTokurz35P7vQTtIan25Cq57gk2EDc0SUC1a',
+        fPassword: hashedPassword,
         fDepartment: 'Computer Science',
         fRole: 'moderator',
         phoneNumber: '8927261211'
@@ -53,7 +55,7 @@ async function main() {
         fName: 'Sulagna Bhattacharya',
         fUsername: 'sulagnabhattacharya',
         fEmail: 'sulagnabhattacharya719@gmail.com',
-        fPassword: '$2a$10$2ZbF/eyh5pmoDYwE4kap9.7VFVZ84PnEuE2UMHi1JXRNV/cpKCk/y',
+        fPassword: hashedPassword,
         fDepartment: null,
         fRole: 'moderator',
         phoneNumber: null

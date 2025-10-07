@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { MessageCircle } from 'lucide-react';
 import { ChatBot } from './ChatBot';
 
 export function ChatBotToggle() {

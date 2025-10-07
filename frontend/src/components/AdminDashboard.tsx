@@ -14,14 +14,14 @@ interface AdminDashboardProps {
 export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogout }: AdminDashboardProps) => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('security');
-  const [failedLogins, setFailedLogins] = useState([]);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [rooms, setRooms] = useState([]);
+  const [failedLogins, setFailedLogins] = useState<any[]>([]);
+  const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [buildings, setBuildings] = useState([]);
+
   const [error, setError] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(true);
-  const [maintenanceStats, setMaintenanceStats] = useState({ totalRooms: 0, maintenanceRooms: 0, lastUpdated: null });
+  const [maintenanceStats, setMaintenanceStats] = useState<{ totalRooms: number; maintenanceRooms: number; lastUpdated: string | null }>({ totalRooms: 0, maintenanceRooms: 0, lastUpdated: null });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<{[key: string]: number}>({});
   
@@ -34,7 +34,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
 
   // Check user authorization - only admin role allowed
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     if (!user.role || user.role !== 'admin') {
       setIsAuthorized(false);
       setError('Access denied. Admin role required.');
@@ -74,7 +74,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     
     try {
       const response = await fetch('http://localhost:3001/api/analytics/security/failed-logins', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
       });
       
       if (response.ok) {
@@ -109,13 +109,22 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:3001/api/analytics/sessions/active', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await fetch('http://localhost:3001/api/analytics/all-logs?action=LOGIN&limit=200', {
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
       });
       
       if (response.ok) {
         const data = await response.json();
-        setActiveSessions(data);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const recentSessions = data.filter((session: any) => 
+          new Date(session.createdAt) >= thirtyDaysAgo
+        );
+        
+        setActiveSessions(recentSessions);
+        localStorage.setItem('admin_sessions_cache', JSON.stringify({
+          data: recentSessions,
+          timestamp: now
+        }));
         setLastFetchTime(prev => ({ ...prev, sessions: now }));
       } else if (response.status === 403) {
         setError('Access denied. Admin privileges required.');
@@ -131,6 +140,22 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setIsRefreshing(false);
   };
 
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date().getTime();
+    const time = new Date(timestamp).getTime();
+    const diff = now - time;
+    
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    return 'Just now';
+  };
+
   const fetchRooms = async (force = false) => {
     if (!isAuthorized) return;
     
@@ -143,7 +168,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setError(null);
     try {
       const response = await fetch('http://localhost:3001/api/rooms', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -162,31 +187,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setLoading(false);
   };
 
-  const updateRoomType = async (roomNumber: string, buildingNumber: string, roomType: string) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/rooms/${roomNumber}/${buildingNumber}/type`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ roomType })
-      });
-      if (response.ok) {
-        setRooms(prev => prev.map((room: any) => 
-          room.rNo === roomNumber && room.bNo.toString() === buildingNumber ? { ...room, rType: roomType } : room
-        ));
-        // Clear building cache to force refresh on home page
-        if ((window as any).roomCache) {
-          (window as any).roomCache.delete(`building-${buildingNumber}`);
-        }
-        alert('Room type updated successfully!');
-      }
-    } catch (error) {
-      console.error('Failed to update room type:', error);
-      alert('Failed to update room type');
-    }
-  };
+
 
   const updateRoomStatus = async (roomNumber: string, buildingNumber: string, roomStatus: string) => {
     try {
@@ -194,7 +195,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: JSON.stringify({ roomStatus })
       });
@@ -220,7 +221,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: JSON.stringify({ capacity })
       });
@@ -282,14 +283,14 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
         ));
         
         // Update selected room for modal display
-        setSelectedRoom(prev => prev ? { ...prev, rType: roomType } : null);
+        setSelectedRoom((prev: any) => prev ? { ...prev, rType: roomType } : null);
         
         // Sync to database in background
         const response = await fetch(`http://localhost:3001/api/rooms/${selectedRoom.rNo}/${selectedRoom.bNo}/type`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
           },
           body: JSON.stringify({ roomType })
         });
@@ -326,7 +327,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     
     try {
       const response = await fetch('http://localhost:3001/api/rooms', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
       });
       
       if (response.ok) {
@@ -355,7 +356,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     try {
       const response = await fetch('http://localhost:3001/api/analytics/cleanup', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -385,6 +386,24 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
   // Load initial data on component mount
   useEffect(() => {
     if (isAuthorized) {
+      // Clean up old cached sessions
+      const cached = localStorage.getItem('admin_sessions_cache');
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const validSessions = data.filter((s: any) => new Date(s.createdAt) >= thirtyDaysAgo);
+          if (validSessions.length !== data.length) {
+            localStorage.setItem('admin_sessions_cache', JSON.stringify({
+              data: validSessions,
+              timestamp
+            }));
+          }
+        } catch (e) {
+          localStorage.removeItem('admin_sessions_cache');
+        }
+      }
+      
       // Load all data immediately on mount
       fetchRooms(true);
       fetchFailedLogins(true);
@@ -470,10 +489,12 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               onClick={() => setActiveTab('security')}
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'security' 
-                  ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
+                  ? theme === 'dark'
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    : 'bg-red-600 text-white border border-red-700 shadow-lg'
                   : theme === 'dark'
                     ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
               }`}
             >
               <Shield className="w-4 h-4 inline mr-2" />
@@ -483,10 +504,12 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               onClick={() => setActiveTab('sessions')}
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'sessions' 
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
+                  ? theme === 'dark'
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                    : 'bg-blue-600 text-white border border-blue-700 shadow-lg'
                   : theme === 'dark'
                     ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
               }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
@@ -496,10 +519,12 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               onClick={() => setActiveTab('roomTypes')}
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'roomTypes' 
-                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' 
+                  ? theme === 'dark'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                    : 'bg-purple-600 text-white border border-purple-700 shadow-lg'
                   : theme === 'dark'
                     ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
               }`}
             >
               <Settings className="w-4 h-4 inline mr-2" />
@@ -509,10 +534,12 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               onClick={() => setActiveTab('roomStatus')}
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'roomStatus' 
-                  ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' 
+                  ? theme === 'dark'
+                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                    : 'bg-orange-600 text-white border border-orange-700 shadow-lg'
                   : theme === 'dark'
                     ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
               }`}
             >
               <Activity className="w-4 h-4 inline mr-2" />
@@ -522,10 +549,12 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               onClick={() => setActiveTab('roomCapacity')}
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'roomCapacity' 
-                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' 
+                  ? theme === 'dark'
+                    ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                    : 'bg-teal-600 text-white border border-teal-700 shadow-lg'
                   : theme === 'dark'
                     ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
               }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
@@ -535,10 +564,12 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               onClick={() => setActiveTab('maintenance')}
               className={`px-6 py-3 rounded-xl transition-all ${
                 activeTab === 'maintenance' 
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                  ? theme === 'dark'
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                    : 'bg-green-600 text-white border border-green-700 shadow-lg'
                   : theme === 'dark'
                     ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-800/90 text-white hover:bg-gray-700/90'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
               }`}
             >
               <Activity className="w-4 h-4 inline mr-2" />
@@ -572,7 +603,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                 <div className="flex items-center justify-between mb-6">
                   <h2 className={`text-xl font-medium ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Failed Login Attempts (Last 24 Hours)</h2>
+                  }`}>Failed Login/Signup Attempts (Recent 50)</h2>
                   <button
                     onClick={() => fetchFailedLogins(true)}
                     disabled={isRefreshing}
@@ -582,22 +613,47 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </button>
                 </div>
                 {failedLogins.length === 0 ? (
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-6 text-center">
-                    <div className="text-green-300 font-medium mb-2">✅ All Clear</div>
-                    <div className="text-white/60 text-sm">No failed login attempts in the last 24 hours</div>
+                  <div className={`rounded-xl p-6 text-center ${
+                    theme === 'dark'
+                      ? 'bg-green-500/10 border border-green-500/20'
+                      : 'bg-green-100 border border-green-300'
+                  }`}>
+                    <div className={`font-medium mb-2 ${
+                      theme === 'dark' ? 'text-green-300' : 'text-green-700'
+                    }`}>✅ All Clear</div>
+                    <div className={`text-sm ${
+                      theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                    }`}>No failed attempts found</div>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {failedLogins.map((log: any) => (
-                      <div key={log.id} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                      <div key={log.auditId} className={`rounded-xl p-4 ${
+                        theme === 'dark'
+                          ? 'bg-red-500/10 border border-red-500/20'
+                          : 'bg-red-100 border border-red-300'
+                      }`}>
                         <div className="flex justify-between items-start">
                           <div>
-                            <div className="text-red-300 font-medium">{log.email || 'Unknown'}</div>
-                            <div className="text-white/60 text-sm">IP: {log.ipAddress || 'N/A'}</div>
-                            <div className="text-white/60 text-sm">Details: {log.details || 'Failed login attempt'}</div>
+                            <div className={`font-medium ${
+                              theme === 'dark' ? 'text-red-300' : 'text-red-700'
+                            }`}>{log.fEmail || 'Unknown'}</div>
+                            <div className={`text-sm ${
+                              theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                            }`}>IP: {log.ipAddress || 'N/A'}</div>
+                            <div className={`text-sm ${
+                              theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                            }`}>Reason: {log.failureReason || log.details || 'Failed attempt'}</div>
                           </div>
-                          <div className="text-white/40 text-sm">
-                            {new Date(log.createdAt).toLocaleString()}
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-red-300' : 'text-red-700'
+                            }`}>
+                              {getTimeAgo(log.createdAt)}
+                            </div>
+                            <div className={`text-xs ${
+                              theme === 'dark' ? 'text-white/40' : 'text-gray-600'
+                            }`}>{new Date(log.createdAt).toLocaleString()}</div>
                           </div>
                         </div>
                       </div>
@@ -613,7 +669,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                 <div className="flex items-center justify-between mb-6">
                   <h2 className={`text-xl font-medium ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>Active Sessions (Last 24 Hours)</h2>
+                  }`}>Login Sessions (Last 30 Days)</h2>
                   <button
                     onClick={() => fetchActiveSessions(true)}
                     disabled={isRefreshing}
@@ -625,22 +681,33 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                 {activeSessions.length === 0 ? (
                   <div className={`text-center py-8 ${
                   theme === 'dark' ? 'text-white/60' : 'text-gray-600'
-                }`}>No active sessions found</div>
+                }`}>No login sessions found</div>
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-3">
                     {activeSessions.map((session: any, index) => (
-                      <div key={index} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                      <div key={session.auditId || index} className={`rounded-xl p-4 ${
+                        theme === 'dark'
+                          ? 'bg-blue-500/10 border border-blue-500/20'
+                          : 'bg-blue-100 border border-blue-300'
+                      }`}>
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="text-blue-300 font-medium">{session.email || 'Unknown User'}</div>
-                            <div className="text-white/60 text-sm">Faculty ID: {session.facultyId || 'N/A'}</div>
-                            <div className="text-white/40 text-xs">User ID: {session.userId || 'N/A'}</div>
+                            <div className={`font-medium ${
+                              theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                            }`}>{session.fEmail || session.user?.fName || 'Unknown User'}</div>
+                            <div className={`text-sm ${
+                              theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                            }`}>Faculty ID: {session.fId || 'N/A'}</div>
                           </div>
                           <div className="text-right">
-                            <div className="text-white/60 text-sm font-medium">
-                              {session._count?.action || 0} login(s)
+                            <div className={`text-sm font-medium ${
+                              theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                            }`}>
+                              {getTimeAgo(session.createdAt)}
                             </div>
-                            <div className="text-white/40 text-xs">Last 24h</div>
+                            <div className={`text-xs ${
+                              theme === 'dark' ? 'text-white/40' : 'text-gray-600'
+                            }`}>{new Date(session.createdAt).toLocaleString()}</div>
                           </div>
                         </div>
                       </div>
@@ -669,13 +736,19 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                        theme === 'dark' ? 'text-white/40' : 'text-gray-500'
+                      }`} />
                       <input
                         type="text"
                         placeholder="Search rooms (e.g., 1-101, Building 1, Room 101)"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-gray-800/80 backdrop-blur-md text-white placeholder-white/50 border-2 border-white/30 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-300 w-80"
+                        className={`backdrop-blur-md border-2 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50 transition-all duration-300 w-80 ${
+                          theme === 'dark'
+                            ? 'bg-gray-800/80 text-white placeholder-white/50 border-white/30 hover:border-white/50'
+                            : 'bg-white text-gray-900 placeholder-gray-500 border-gray-300 hover:border-gray-400'
+                        }`}
                       />
                     </div>
                     <button
@@ -696,7 +769,9 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </div>
                 </div>
                 {rooms.length === 0 ? (
-                  <div className="text-center py-8 text-white/60">No rooms found</div>
+                  <div className={`text-center py-8 ${
+                    theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                  }`}>No rooms found</div>
                 ) : (
                   <div className="space-y-6">
                     {Object.entries(groupRoomsByBuilding()).map(([buildingNumber, buildingRooms]: [string, any]) => {
@@ -704,26 +779,38 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                       if (filteredBuildingRooms.length === 0) return null;
                       
                       return (
-                        <div key={buildingNumber} className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                          <h3 className="text-white font-medium text-lg mb-4">Building {buildingNumber}</h3>
+                        <div key={buildingNumber} className={`rounded-2xl p-6 border ${
+                          theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-gray-100 border-gray-300'
+                        }`}>
+                          <h3 className={`font-medium text-lg mb-4 ${
+                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                          }`}>Building {buildingNumber}</h3>
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                             {filteredBuildingRooms.map((room: any) => (
                               <div
                                 key={`${room.rNo}-${room.bNo}`}
                                 onClick={() => handleRoomClick(room)}
-                                className={`group relative bg-white/10 hover:bg-white/20 border-2 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
-                                  room.rType === 'Undefined' 
-                                    ? 'border-red-500/50 hover:border-red-400/70' 
-                                    : 'border-green-500/50 hover:border-green-400/70'
+                                className={`group relative border-2 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+                                  theme === 'dark' ? 'bg-white/10 hover:bg-white/20' : 'bg-white hover:bg-gray-50'
+                                } ${
+                                  room.rType === 'Undefined'
+                                    ? theme === 'dark' ? 'border-red-500/50 hover:border-red-400/70' : 'border-red-400 hover:border-red-500'
+                                    : theme === 'dark' ? 'border-green-500/50 hover:border-green-400/70' : 'border-green-400 hover:border-green-500'
                                 }`}
                               >
-                                <div className="text-white font-semibold text-sm mb-2">Room {room.rNo}</div>
+                                <div className={`font-semibold text-sm mb-2 ${
+                                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>Room {room.rNo}</div>
                                 <div className={`text-xs font-medium mb-1 ${
-                                  room.rType === 'Undefined' ? 'text-red-300' : 'text-green-300'
+                                  room.rType === 'Undefined'
+                                    ? theme === 'dark' ? 'text-red-300' : 'text-red-600'
+                                    : theme === 'dark' ? 'text-green-300' : 'text-green-600'
                                 }`}>
                                   {room.rType}
                                 </div>
-                                <div className="text-white/50 text-xs">Cap: {room.capacity}</div>
+                                <div className={`text-xs ${
+                                  theme === 'dark' ? 'text-white/50' : 'text-gray-600'
+                                }`}>Cap: {room.capacity}</div>
                                 
                                 {/* Status indicator */}
                                 <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
@@ -759,13 +846,19 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                        theme === 'dark' ? 'text-white/40' : 'text-gray-500'
+                      }`} />
                       <input
                         type="text"
                         placeholder="Search rooms (e.g., 1-101, Building 1, Room 101)"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-gray-800/80 backdrop-blur-md text-white placeholder-white/50 border-2 border-white/30 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 transition-all duration-300 w-80"
+                        className={`backdrop-blur-md border-2 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-400/50 transition-all duration-300 w-80 ${
+                          theme === 'dark'
+                            ? 'bg-gray-800/80 text-white placeholder-white/50 border-white/30 hover:border-white/50'
+                            : 'bg-white text-gray-900 placeholder-gray-500 border-gray-300 hover:border-gray-400'
+                        }`}
                       />
                     </div>
                     <button
@@ -786,15 +879,23 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </div>
                 </div>
                 {rooms.length === 0 ? (
-                  <div className="text-center py-8 text-white/60">No rooms found</div>
+                  <div className={`text-center py-8 ${
+                    theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                  }`}>No rooms found</div>
                 ) : (
                   <div className="grid gap-4">
                     {(isSearchActive ? filterRooms(rooms) : rooms).map((room: any) => (
-                      <div key={`${room.rNo}-${room.bNo}`} className="bg-white/10 border border-white/20 rounded-xl p-4">
+                      <div key={`${room.rNo}-${room.bNo}`} className={`rounded-xl p-4 border ${
+                        theme === 'dark' ? 'bg-white/10 border-white/20' : 'bg-white border-gray-300'
+                      }`}>
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="text-white font-medium">Room {room.rNo} - Building {room.bNo}</div>
-                            <div className="text-white/60 text-sm">{room.rType}</div>
+                            <div className={`font-medium ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>Room {room.rNo} - Building {room.bNo}</div>
+                            <div className={`text-sm ${
+                              theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                            }`}>{room.rType}</div>
                             <div className={`text-xs mt-1 font-medium ${
                               room.rStatus === 'Available' ? 'text-green-400' :
                               room.rStatus === 'Booked' ? 'text-yellow-400' :
@@ -838,14 +939,20 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                        theme === 'dark' ? 'text-white/40' : 'text-gray-500'
+                      }`} />
                       <input
                         type="text"
                         id="capacity-search"
                         placeholder="Search rooms (e.g., 1-101, Building 1, Room 101)"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-gray-800/80 backdrop-blur-md text-white placeholder-white/50 border-2 border-white/30 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:border-teal-400/50 transition-all duration-300 w-80"
+                        className={`backdrop-blur-md border-2 rounded-xl pl-10 pr-4 py-3 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-400/50 transition-all duration-300 w-80 ${
+                          theme === 'dark'
+                            ? 'bg-gray-800/80 text-white placeholder-white/50 border-white/30 hover:border-white/50'
+                            : 'bg-white text-gray-900 placeholder-gray-500 border-gray-300 hover:border-gray-400'
+                        }`}
                       />
                     </div>
                     <button
@@ -873,21 +980,33 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                   </div>
                 </div>
                 {rooms.length === 0 ? (
-                  <div className="text-center py-8 text-white/60">No rooms found</div>
+                  <div className={`text-center py-8 ${
+                    theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                  }`}>No rooms found</div>
                 ) : (
                   <div className="grid gap-4">
                     {(() => {
                       const displayRooms = isSearchActive ? filterRooms(rooms) : rooms;
                       if (isSearchActive && displayRooms.length === 0) {
-                        return <div className="text-center py-8 text-white/60">No rooms match your search</div>;
+                        return <div className={`text-center py-8 ${
+                          theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+                        }`}>No rooms match your search</div>;
                       }
                       return displayRooms.map((room: any) => (
-                      <div key={`${room.rNo}-${room.bNo}`} className="bg-white/10 border border-white/20 rounded-xl p-4">
+                      <div key={`${room.rNo}-${room.bNo}`} className={`rounded-xl p-4 border ${
+                        theme === 'dark' ? 'bg-white/10 border-white/20' : 'bg-white border-gray-300'
+                      }`}>
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="text-white font-medium">Room {room.rNo} - Building {room.bNo}</div>
-                            <div className="text-white/60 text-sm">{room.rType}</div>
-                            <div className="text-teal-400 text-xs mt-1 font-medium">
+                            <div className={`font-medium ${
+                              theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>Room {room.rNo} - Building {room.bNo}</div>
+                            <div className={`text-sm ${
+                              theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                            }`}>{room.rType}</div>
+                            <div className={`text-xs mt-1 font-medium ${
+                              theme === 'dark' ? 'text-teal-400' : 'text-teal-600'
+                            }`}>
                               Current Capacity: {room.capacity} students
                             </div>
                           </div>
@@ -941,30 +1060,56 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                 
                 {/* Maintenance Statistics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-                    <div className="text-green-300 font-medium text-lg">{maintenanceStats.totalRooms}</div>
-                    <div className="text-white/60 text-sm">Total Rooms</div>
+                  <div className={`rounded-xl p-4 border ${
+                    theme === 'dark' ? 'bg-green-500/10 border-green-500/20' : 'bg-green-100 border-green-300'
+                  }`}>
+                    <div className={`font-medium text-lg ${
+                      theme === 'dark' ? 'text-green-300' : 'text-green-700'
+                    }`}>{maintenanceStats.totalRooms}</div>
+                    <div className={`text-sm ${
+                      theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                    }`}>Total Rooms</div>
                   </div>
-                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
-                    <div className="text-orange-300 font-medium text-lg">{maintenanceStats.maintenanceRooms}</div>
-                    <div className="text-white/60 text-sm">Under Maintenance</div>
+                  <div className={`rounded-xl p-4 border ${
+                    theme === 'dark' ? 'bg-orange-500/10 border-orange-500/20' : 'bg-orange-100 border-orange-300'
+                  }`}>
+                    <div className={`font-medium text-lg ${
+                      theme === 'dark' ? 'text-orange-300' : 'text-orange-700'
+                    }`}>{maintenanceStats.maintenanceRooms}</div>
+                    <div className={`text-sm ${
+                      theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                    }`}>Under Maintenance</div>
                   </div>
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-                    <div className="text-blue-300 font-medium text-lg">{maintenanceStats.totalRooms - maintenanceStats.maintenanceRooms}</div>
-                    <div className="text-white/60 text-sm">Operational Rooms</div>
+                  <div className={`rounded-xl p-4 border ${
+                    theme === 'dark' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-blue-100 border-blue-300'
+                  }`}>
+                    <div className={`font-medium text-lg ${
+                      theme === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                    }`}>{maintenanceStats.totalRooms - maintenanceStats.maintenanceRooms}</div>
+                    <div className={`text-sm ${
+                      theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                    }`}>Operational Rooms</div>
                   </div>
                 </div>
                 
                 {maintenanceStats.lastUpdated && (
-                  <div className="text-white/40 text-sm mb-4">
+                  <div className={`text-sm mb-4 ${
+                    theme === 'dark' ? 'text-white/40' : 'text-gray-600'
+                  }`}>
                     Last updated: {maintenanceStats.lastUpdated}
                   </div>
                 )}
                 
                 <div className="space-y-4">
-                  <div className="bg-white/10 rounded-xl p-6">
-                    <h3 className="text-white font-medium mb-3">Data Cleanup</h3>
-                    <p className="text-white/60 text-sm mb-4">
+                  <div className={`rounded-xl p-6 border ${
+                    theme === 'dark' ? 'bg-white/10 border-white/20' : 'bg-gray-100 border-gray-300'
+                  }`}>
+                    <h3 className={`font-medium mb-3 ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>Data Cleanup</h3>
+                    <p className={`text-sm mb-4 ${
+                      theme === 'dark' ? 'text-white/60' : 'text-gray-700'
+                    }`}>
                       Remove audit logs older than 1 year to free up database space.
                     </p>
                     <button

@@ -1,65 +1,50 @@
 # SmartDesk - Room Booking System
 
-A modern room booking system built with React, Node.js, and PostgreSQL.
+## Development Setup
 
-## Project Structure
+### Prerequisites
+- Node.js 18+
+- PostgreSQL
+- Git
 
-```
-SmartDesk/
-├── frontend/           # React frontend application
-│   ├── src/           # Source code
-│   ├── package.json   # Frontend dependencies
-│   └── index.html     # Entry point
-├── backend/           # Node.js backend API
-│   ├── src/          # API routes and middleware
-│   ├── package.json  # Backend dependencies
-│   └── server.js     # Server entry point
-├── database/         # Database related files
-│   ├── schema.prisma # Prisma schema
-│   ├── schema.sql    # PostgreSQL schema
-│   └── seed.js       # Database seeding
-├── config/           # Configuration files
-│   ├── docker-compose.yml
-│   ├── tailwind.config.js
-│   └── vite.config.ts
-└── docs/             # Documentation
+### Backend Setup
+```bash
+cd backend
+npm install
+npm run build
+npm run seed
+npm run dev
 ```
 
-## Quick Start
+### Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-1. **Database Setup:**
-   ```bash
-   cd database
-   createdb smartdesk
-   npx prisma db push --schema=schema.prisma
-   ```
+### Database Setup
+1. Create PostgreSQL database named `smartdesk`
+2. Update `.env` with your database credentials
+3. Run migrations: `npm run migrate`
+4. Seed data: `npm run seed`
 
-2. **Backend:**
-   ```bash
-   cd backend
-   npm install
-   npm run dev
-   ```
+## Environment Configuration
 
-3. **Frontend:**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+Copy `.env.example` to `.env` in backend folder and configure:
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - JWT signing secret
+- `PORT` - Server port (default: 3001)
+
+## Development URLs
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001/api
+- Health Check: http://localhost:3001/health
 
 ## Features
-
-- User authentication & profiles
 - Room booking system
-- Wishlist functionality
-- Real-time notifications
+- Real-time updates with Socket.io
 - Admin dashboard
-- Responsive design
-
-## Tech Stack
-
-- **Frontend:** React, TypeScript, Tailwind CSS
-- **Backend:** Node.js, Express, Prisma
-- **Database:** PostgreSQL
-- **Auth:** JWT tokens
+- User authentication
+- Email notifications
+- AI chatbot integration

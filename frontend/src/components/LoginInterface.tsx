@@ -66,12 +66,33 @@ export const LoginInterface: React.FC<LoginInterfaceProps> = ({ onLogin }) => {
         {/* Logo Section */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-6 bg-gradient-to-r from-orange-400 to-yellow-400 rounded-full flex items-center">
-              <div className="w-5 h-5 bg-white rounded-full ml-1 shadow-lg"></div>
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 shadow-2xl hover:shadow-orange-500/30 transition-all duration-500 hover:scale-110 flex items-center justify-center relative overflow-hidden group">
+                {/* 3D depth effect */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300/20 via-orange-400/20 to-red-400/20 blur-sm"></div>
+                <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-white/30 to-transparent"></div>
+                
+                {/* Inner glow */}
+                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/40 via-orange-100/30 to-transparent"></div>
+                
+                {/* Logo content - SD Text */}
+                <div className="relative z-10 flex items-center justify-center">
+                  <span className="text-lg font-bold text-gray-700/80 tracking-tight drop-shadow-sm">
+                    SD
+                  </span>
+                </div>
+                
+                {/* Rotating shine */}
+                <div className="absolute top-1 right-1 w-2 h-2 bg-gradient-to-br from-white/70 to-orange-200/50 rounded-full blur-sm group-hover:animate-pulse transition-all duration-300"></div>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white">SmartDesk</h1>
+            <h1 className={`text-2xl font-bold ${
+              theme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>SmartDesk</h1>
           </div>
-          <p className="text-white/60 text-sm">Room Booking System</p>
+          <p className={`text-sm ${
+            theme === 'dark' ? 'text-white/60' : 'text-gray-600'
+          }`}>Room Booking System</p>
         </div>
 
         {/* Auth Card */}
@@ -84,7 +105,9 @@ export const LoginInterface: React.FC<LoginInterfaceProps> = ({ onLogin }) => {
             <h2 className="text-2xl font-semibold text-white mb-2">
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
-            <p className="text-white/60 text-sm">
+            <p className={`text-sm ${
+              theme === 'dark' ? 'text-white/60' : 'text-gray-300'
+            }`}>
               {isLogin ? 'Sign in to access your dashboard' : 'Join SmartDesk to book rooms'}
             </p>
           </div>

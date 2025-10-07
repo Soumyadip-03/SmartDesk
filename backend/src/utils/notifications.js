@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
+import { sanitizeInput } from './sanitize.js';
 
 const prisma = new PrismaClient();
 
@@ -17,12 +18,15 @@ const transporter = nodemailer.createTransport({
 // Create notification
 export const createNotification = async (facultyId, type, title, message, bookingId = null, urgent = false) => {
   try {
+    const sanitizedTitle = sanitizeInput(title);
+    const sanitizedMessage = sanitizeInput(message);
+    
     const notification = await prisma.notification.create({
       data: {
         facultyId,
         type,
-        title,
-        message,
+        title: sanitizedTitle,
+        message: sanitizedMessage,
         bookingId,
         urgent
       }
@@ -35,7 +39,7 @@ export const createNotification = async (facultyId, type, title, message, bookin
     });
 
     if (user?.settings?.notifications && user.email) {
-      await sendEmailNotification(user.email, title, message);
+      await sendEmailNotification(user.email, sanitizedTitle, sanitizedMessage);
       await prisma.notification.update({
         where: { id: notification.id },
         data: { emailSent: true }
@@ -45,6 +49,7 @@ export const createNotification = async (facultyId, type, title, message, bookin
     return notification;
   } catch (error) {
     console.error('Failed to create notification:', error);
+    throw error;
   }
 };
 
@@ -68,6 +73,7 @@ const sendEmailNotification = async (email, title, message) => {
     });
   } catch (error) {
     console.error('Failed to send email:', error);
+    throw error;
   }
 };
 

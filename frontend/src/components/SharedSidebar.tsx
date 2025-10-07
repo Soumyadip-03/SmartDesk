@@ -9,12 +9,9 @@ interface SharedSidebarProps {
   onAccount?: () => void;
   onSettings?: () => void;
   onBookings?: () => void;
-  onWishlist?: () => void;
-  onNotifications?: () => void;
   onAdmin?: () => void;
   onLogout?: () => void;
   bookingsCount?: number;
-  wishlistCount?: number;
   children?: React.ReactNode;
 }
 
@@ -26,12 +23,9 @@ export function SharedSidebar({
   onAccount, 
   onSettings, 
   onBookings,
-  onWishlist,
-  onNotifications,
   onAdmin,
   onLogout,
   bookingsCount = 0,
-  wishlistCount = 0,
   children 
 }: SharedSidebarProps) {
   const { theme } = useTheme();

@@ -19,7 +19,8 @@ interface AccountInterfaceProps {
 
 export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNotifications, onAdmin, onLogout, onUserNameUpdate, bookings = [], wishlistCount = 0, onShowBookings }: AccountInterfaceProps) {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab] = useState("profile");
+  const [showImageModal, setShowImageModal] = useState(false);
   const [profileData, setProfileData] = useState({
     username: '',
     fullName: '',
@@ -36,7 +37,7 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
 
   useEffect(() => {
     const loadProfileData = () => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
       const facultyId = user.facultyId || 'guest';
       const firstName = user.name ? user.name.split(' ')[0] : '';
       
@@ -48,10 +49,10 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
         establishmentId: user.establishmentId || '',
         establishment: user.establishment || '',
         role: user.role || 'moderator',
-        department: user.department || localStorage.getItem(`${facultyId}_department`) || '',
-        language: localStorage.getItem(`${facultyId}_language`) || 'English',
-        phone: user.phoneNumber?.toString() || localStorage.getItem(`${facultyId}_phone`) || '',
-        profilePicture: user.profilePicture || localStorage.getItem(`${facultyId}_profilePicture`) || ''
+        department: user.department || sessionStorage.getItem(`${facultyId}_department`) || '',
+        language: sessionStorage.getItem(`${facultyId}_language`) || 'English',
+        phone: user.phoneNumber?.toString() || sessionStorage.getItem(`${facultyId}_phone`) || '',
+        profilePicture: user.profilePicture || sessionStorage.getItem(`${facultyId}_profilePicture`) || ''
       });
     };
     
@@ -63,16 +64,16 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
   };
 
   const handleSave = async () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const facultyId = user.facultyId || 'guest';
     
     try {
-      // Save to localStorage first
-      localStorage.setItem(`${facultyId}_department`, profileData.department || '');
-      localStorage.setItem(`${facultyId}_phone`, profileData.phone || '');
-      localStorage.setItem(`${facultyId}_language`, profileData.language || 'English');
+      // Save to sessionStorage first
+      sessionStorage.setItem(`${facultyId}_department`, profileData.department || '');
+      sessionStorage.setItem(`${facultyId}_phone`, profileData.phone || '');
+      sessionStorage.setItem(`${facultyId}_language`, profileData.language || 'English');
       
-      // Update user object in localStorage
+      // Update user object in sessionStorage
       const updatedUser = {
         ...user,
         department: profileData.department,
@@ -80,7 +81,7 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
         name: profileData.fullName,
         username: profileData.username
       };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('user', JSON.stringify(updatedUser));
       
       alert('Profile saved successfully!');
       
@@ -90,14 +91,14 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: JSON.stringify({
           name: profileData.fullName,
           department: profileData.department,
           phoneNumber: profileData.phone ? parseInt(profileData.phone) : null,
           username: profileData.username,
-          profilePicture: localStorage.getItem('profilePhoto') || null
+          profilePicture: sessionStorage.getItem('profilePhoto') || null
         })
       }).then(response => {
         if (response.ok) {
@@ -133,24 +134,57 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
               <div className="flex items-start gap-6">
                 {/* Profile Picture */}
                 <div className="flex flex-col items-center gap-3">
-                  <div className={`w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm border-2 rounded-full flex items-center justify-center ${
-                    theme === 'dark' ? 'border-white/20' : 'border-gray-400'
-                  }`}>
-                    <User className="w-12 h-12 text-white/80" />
+                  <div 
+                    onClick={() => profileData.profilePicture && setShowImageModal(true)}
+                    className={`w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm border-2 rounded-full flex items-center justify-center overflow-hidden ${
+                      theme === 'dark' ? 'border-white/20' : 'border-gray-400'
+                    } ${profileData.profilePicture ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                  >
+                    {profileData.profilePicture ? (
+                      <img src={profileData.profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-12 h-12 text-white/80" />
+                    )}
                   </div>
                   <button 
                     onClick={() => {
                       const input = document.createElement('input');
                       input.type = 'file';
                       input.accept = 'image/*';
-                      input.onchange = (e) => {
+                      input.onchange = async (e) => {
                         const file = (e.target as HTMLInputElement).files?.[0];
                         if (file) {
                           const reader = new FileReader();
-                          reader.onload = (e) => {
+                          reader.onload = async (e) => {
                             const result = e.target?.result as string;
-                            localStorage.setItem('profilePhoto', result);
-                            alert('Profile photo updated!');
+                            sessionStorage.setItem('profilePhoto', result);
+                            setProfileData(prev => ({ ...prev, profilePicture: result }));
+                            
+                            // Sync to database
+                            try {
+                              const response = await fetch('http://localhost:3001/api/auth/profile', {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                                },
+                                body: JSON.stringify({ profilePicture: result })
+                              });
+                              
+                              if (response.ok) {
+                                const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+                                user.profilePicture = result;
+                                sessionStorage.setItem('user', JSON.stringify(user));
+                                alert('Profile photo updated successfully!');
+                              } else {
+                                const errorText = await response.text();
+                                console.error('Upload failed:', errorText);
+                                alert('Photo saved locally. Database sync failed.');
+                              }
+                            } catch (error) {
+                              console.error('Upload error:', error);
+                              alert('Photo saved locally. Database sync failed.');
+                            }
                           };
                           reader.readAsDataURL(file);
                         }
@@ -383,6 +417,30 @@ export function AccountInterface({ onClose, onHome, onSettings, onWishlist, onNo
           </div>
         </div>
       </div>
+
+      {/* Image Modal */}
+      {showImageModal && profileData.profilePicture && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <div className="w-80 h-80 rounded-full overflow-hidden border-4 border-white/20 shadow-2xl">
+              <img 
+                src={profileData.profilePicture} 
+                alt="Profile" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute -top-4 -right-4 bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

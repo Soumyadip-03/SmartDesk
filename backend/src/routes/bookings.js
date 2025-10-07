@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
+
 import { createNotificationForAllUsers } from './notifications.js';
 import { emitRoomStatusChange, emitBookingUpdate } from '../socket/socketHandler.js';
 

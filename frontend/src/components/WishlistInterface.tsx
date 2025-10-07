@@ -1,4 +1,4 @@
-import { Heart, X, Home, MapPin, Users, Clock } from "lucide-react";
+import { Heart, Home, MapPin, Users, Clock } from "lucide-react";
 import { useState } from "react";
 import { CompactRoomBookingModal } from "./CompactRoomBookingModal";
 import { useTheme } from "../contexts/ThemeContext";
@@ -14,7 +14,6 @@ interface WishlistRoom {
 
 interface WishlistInterfaceProps {
   wishlistRooms: WishlistRoom[];
-  onClose: () => void;
   onRemoveFromWishlist: (roomNumber: string, buildingNumber: number) => void;
   onHome?: () => void;
   onBooking: (bookingData: any) => void;
@@ -22,7 +21,6 @@ interface WishlistInterfaceProps {
 
 export function WishlistInterface({ 
   wishlistRooms, 
-  onClose, 
   onRemoveFromWishlist,
   onHome,
   onBooking 
@@ -227,7 +225,7 @@ export function WishlistInterface({
             setShowBookingModal(false);
             setSelectedRoom(null);
           }}
-          onWishlist={async (room) => {
+          onWishlist={async () => {
             // Already in wishlist, do nothing
           }}
         />

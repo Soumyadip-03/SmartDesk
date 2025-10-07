@@ -44,17 +44,18 @@ export const startBookingScheduler = () => {
         data: { status: 'ongoing' }
       });
       
-      // Find ongoing bookings to update room status
-      const ongoingBookings = await prisma.booking.findMany({
+      // Find newly ongoing bookings (just changed from confirmed)
+      const newlyOngoingBookings = await prisma.booking.findMany({
         where: {
           status: 'ongoing',
           startTime: { lte: now },
-          endTime: { gte: now }
+          endTime: { gte: now },
+          updatedAt: { gte: new Date(now.getTime() - 6000) } // Only recently updated
         }
       });
       
-      // Update room status for ongoing bookings
-      for (const booking of ongoingBookings) {
+      // Update room status for newly ongoing bookings
+      for (const booking of newlyOngoingBookings) {
         await prisma.room.updateMany({
           where: {
             rNo: booking.rNo,
@@ -104,7 +105,7 @@ export const startBookingScheduler = () => {
         where: {
           status: 'finished',
           endTime: { lt: now },
-          updatedAt: { gte: new Date(now.getTime() - 35000) } // Only recently updated
+          updatedAt: { gte: new Date(now.getTime() - 6000) } // Only recently updated
         }
       });
       
@@ -137,14 +138,14 @@ export const startBookingScheduler = () => {
         }
       }
       
-      const totalUpdates = ongoingBookings.length + expiredBookings.length;
+      const totalUpdates = newlyOngoingBookings.length + expiredBookings.length;
       const totalReminders = startingBookings.length + endingBookings.length;
       if (totalUpdates > 0 || totalReminders > 0) {
-        console.log(`Updated ${ongoingBookings.length} ongoing and ${expiredBookings.length} expired bookings`);
+        console.log(`Updated ${newlyOngoingBookings.length} ongoing and ${expiredBookings.length} expired bookings`);
         console.log(`Sent ${startingBookings.length} start and ${endingBookings.length} end reminders`);
       }
     } catch (error) {
       console.error('Booking scheduler error:', error);
     }
-  }, 30000); // Run every 30 seconds
+  }, 5000); // Run every 5 seconds
 };
