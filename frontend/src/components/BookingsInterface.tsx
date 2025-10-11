@@ -200,7 +200,7 @@ export function BookingsInterface({
   });
 
   return (
-    <div className={`fixed inset-0 z-50 transition-colors duration-300 ${
+    <div className={`fixed inset-0 z-[100] transition-colors duration-300 ${
       theme === 'dark'
         ? 'bg-gradient-to-br from-gray-900 via-black to-gray-800 text-white'
         : 'bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900'

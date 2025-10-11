@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, Activity, Trash2, Settings, Search } from 'lucide-react';
+import { Shield, Users, Activity, Trash2, Settings, Search, Calendar } from 'lucide-react';
 import { SharedSidebar } from './SharedSidebar';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -484,25 +484,10 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
           )}
 
           {/* Tabs */}
-          <div className="flex flex-wrap gap-4 mb-6">
-            <button
-              onClick={() => setActiveTab('security')}
-              className={`px-6 py-3 rounded-xl transition-all ${
-                activeTab === 'security' 
-                  ? theme === 'dark'
-                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                    : 'bg-red-600 text-white border border-red-700 shadow-lg'
-                  : theme === 'dark'
-                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
-              }`}
-            >
-              <Shield className="w-4 h-4 inline mr-2" />
-              Security Monitor
-            </button>
+          <div className="flex gap-4 mb-6 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
             <button
               onClick={() => setActiveTab('sessions')}
-              className={`px-6 py-3 rounded-xl transition-all ${
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'sessions' 
                   ? theme === 'dark'
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
@@ -516,8 +501,53 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
               Active Sessions
             </button>
             <button
+              onClick={() => setActiveTab('security')}
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'security' 
+                  ? theme === 'dark'
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    : 'bg-red-600 text-white border border-red-700 shadow-lg'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
+              }`}
+            >
+              <Shield className="w-4 h-4 inline mr-2" />
+              Security Monitor
+            </button>
+            <button
+              onClick={() => setActiveTab('maintenance')}
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'maintenance' 
+                  ? theme === 'dark'
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                    : 'bg-green-600 text-white border border-green-700 shadow-lg'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
+              }`}
+            >
+              <Activity className="w-4 h-4 inline mr-2" />
+              Maintenance
+            </button>
+            <button
+              onClick={() => setActiveTab('bulkSchedule')}
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'bulkSchedule' 
+                  ? theme === 'dark'
+                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                    : 'bg-indigo-600 text-white border border-indigo-700 shadow-lg'
+                  : theme === 'dark'
+                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
+              }`}
+            >
+              <Calendar className="w-4 h-4 inline mr-2" />
+              Bulk Schedule
+            </button>
+            <button
               onClick={() => setActiveTab('roomTypes')}
-              className={`px-6 py-3 rounded-xl transition-all ${
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'roomTypes' 
                   ? theme === 'dark'
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
@@ -532,7 +562,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             </button>
             <button
               onClick={() => setActiveTab('roomStatus')}
-              className={`px-6 py-3 rounded-xl transition-all ${
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'roomStatus' 
                   ? theme === 'dark'
                     ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
@@ -547,7 +577,7 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             </button>
             <button
               onClick={() => setActiveTab('roomCapacity')}
-              className={`px-6 py-3 rounded-xl transition-all ${
+              className={`px-6 py-3 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'roomCapacity' 
                   ? theme === 'dark'
                     ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
@@ -559,21 +589,6 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
             >
               <Users className="w-4 h-4 inline mr-2" />
               Room Capacity
-            </button>
-            <button
-              onClick={() => setActiveTab('maintenance')}
-              className={`px-6 py-3 rounded-xl transition-all ${
-                activeTab === 'maintenance' 
-                  ? theme === 'dark'
-                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                    : 'bg-green-600 text-white border border-green-700 shadow-lg'
-                  : theme === 'dark'
-                    ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-400'
-              }`}
-            >
-              <Activity className="w-4 h-4 inline mr-2" />
-              Maintenance
             </button>
           </div>
 
@@ -1039,6 +1054,191 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                     })()}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Bulk Schedule Tab */}
+            {activeTab === 'bulkSchedule' && !loading && (
+              <div className="space-y-6">
+                <h2 className={`text-xl font-medium mb-6 ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>Bulk Schedule Management</h2>
+                
+                <div className={`rounded-xl p-6 border ${
+                  theme === 'dark' ? 'bg-white/10 border-white/20' : 'bg-gray-100 border-gray-300'
+                }`}>
+                  <h3 className={`font-medium mb-4 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>Create Recurring Schedule</h3>
+                  
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const data = {
+                      roomNumber: formData.get('roomNumber'),
+                      buildingNumber: formData.get('buildingNumber'),
+                      startDate: formData.get('startDate'),
+                      duration: formData.get('duration'),
+                      daysOfWeek: Array.from(formData.getAll('daysOfWeek')),
+                      startTime: formData.get('startTime'),
+                      endTime: formData.get('endTime'),
+                      subject: formData.get('subject'),
+                      facultyId: formData.get('facultyId')
+                    };
+                    
+                    try {
+                      const response = await fetch('http://localhost:3001/api/bookings/bulk', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify(data)
+                      });
+                      
+                      if (response.ok) {
+                        const result = await response.json();
+                        alert(`Successfully created ${result.count} bookings!`);
+                        e.currentTarget.reset();
+                      } else {
+                        const error = await response.json();
+                        alert(`Failed: ${error.message}`);
+                      }
+                    } catch (error) {
+                      alert('Network error. Please try again.');
+                    }
+                  }} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Room Number</label>
+                        <input
+                          type="text"
+                          name="roomNumber"
+                          required
+                          placeholder="e.g., 101"
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Building Number</label>
+                        <input
+                          type="text"
+                          name="buildingNumber"
+                          required
+                          placeholder="e.g., 1"
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Start Date</label>
+                        <input
+                          type="date"
+                          name="startDate"
+                          required
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Duration</label>
+                        <select
+                          name="duration"
+                          required
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        >
+                          <option value="1" className="bg-gray-800">1 Month</option>
+                          <option value="3" className="bg-gray-800">3 Months</option>
+                          <option value="6" className="bg-gray-800">6 Months</option>
+                          <option value="12" className="bg-gray-800">1 Year</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>Days of Week</label>
+                      <div className="grid grid-cols-7 gap-2">
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => (
+                          <label key={day} className="flex items-center gap-2 bg-white/10 rounded-lg p-2 cursor-pointer hover:bg-white/20">
+                            <input type="checkbox" name="daysOfWeek" value={idx + 1} className="rounded" />
+                            <span className="text-white text-xs">{day}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Start Time</label>
+                        <input
+                          type="time"
+                          name="startTime"
+                          required
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>End Time</label>
+                        <input
+                          type="time"
+                          name="endTime"
+                          required
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Subject</label>
+                        <input
+                          type="text"
+                          name="subject"
+                          required
+                          placeholder="e.g., Mathematics"
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>Faculty ID</label>
+                        <input
+                          type="text"
+                          name="facultyId"
+                          required
+                          placeholder="e.g., FAC001"
+                          className="w-full bg-white/20 text-white border border-white/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        />
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      className="w-full bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 px-6 py-3 rounded-xl transition-all border border-indigo-500/30 font-medium"
+                    >
+                      Create Bulk Schedule
+                    </button>
+                  </form>
+                </div>
               </div>
             )}
 

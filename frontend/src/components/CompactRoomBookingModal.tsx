@@ -30,8 +30,10 @@ export const CompactRoomBookingModal = ({
   const [bookingType, setBookingType] = useState<'swap' | 'later'>('swap');
   const getCurrentDate = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
   
   const [formData, setFormData] = useState(() => {
@@ -65,6 +67,15 @@ export const CompactRoomBookingModal = ({
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    
+    // Validate student count against room capacity
+    const studentCount = parseInt(formData.numberOfStudents);
+    const roomCapacity = room.capacity || 0;
+    if (studentCount > roomCapacity) {
+      setError(`The number of students are greater than the capability of room ${room.rNo}`);
+      setIsSubmitting(false);
+      return;
+    }
     
     try {
       const bookingData = {
@@ -103,7 +114,7 @@ export const CompactRoomBookingModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-2">
       <div className={`rounded-xl p-4 w-full max-w-xl max-h-[95vh] overflow-y-auto border ${
         theme === 'dark'
           ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-white/20'

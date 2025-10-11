@@ -639,4 +639,80 @@ router.get('/building/:buildingNumber', authenticateToken, async (req, res) => {
   }
 });
 
+// Bulk booking creation for admin (recurring schedules)
+router.post('/bulk', authenticateToken, async (req, res) => {
+  try {
+    // Check admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can create bulk schedules' });
+    }
+
+    const { roomNumber, buildingNumber, startDate, duration, daysOfWeek, startTime, endTime, subject, facultyId } = req.body;
+
+    if (!roomNumber || !buildingNumber || !startDate || !duration || !daysOfWeek || !startTime || !endTime || !subject || !facultyId) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Verify faculty exists
+    const faculty = await prisma.user.findUnique({ where: { fId: facultyId } });
+    if (!faculty) {
+      return res.status(404).json({ error: 'Faculty not found' });
+    }
+
+    const start = new Date(startDate);
+    const endDate = new Date(start);
+    endDate.setMonth(endDate.getMonth() + parseInt(duration));
+
+    const bookings = [];
+    const currentDate = new Date(start);
+
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay();
+      
+      if (daysOfWeek.includes(dayOfWeek.toString())) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const startDateTime = new Date(`${dateStr}T${startTime}:00+05:30`);
+        const endDateTime = new Date(`${dateStr}T${endTime}:00+05:30`);
+
+        // Check for conflicts
+        const conflict = await prisma.booking.findFirst({
+          where: {
+            rNo: roomNumber,
+            bNo: parseInt(buildingNumber),
+            date: currentDate,
+            status: { in: ['confirmed', 'pending'] },
+            startTime: { lt: endDateTime },
+            endTime: { gt: startDateTime }
+          }
+        });
+
+        if (!conflict) {
+          const booking = await prisma.booking.create({
+            data: {
+              fId: facultyId,
+              rNo: roomNumber,
+              bNo: parseInt(buildingNumber),
+              date: new Date(currentDate),
+              startTime: startDateTime,
+              endTime: endDateTime,
+              status: 'confirmed',
+              subject: subject,
+              numberOfStudents: null,
+              notes: 'Bulk scheduled by admin'
+            }
+          });
+          bookings.push(booking);
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    res.json({ message: 'Bulk schedule created', count: bookings.length, bookings });
+  } catch (error) {
+    console.error('Bulk booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
