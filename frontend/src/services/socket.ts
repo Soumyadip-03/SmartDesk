@@ -2,8 +2,7 @@ import { io, Socket } from 'socket.io-client';
 
 class SocketService {
   private socket: Socket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  // Removed unused variables to fix TypeScript warnings
 
   connect() {
     const token = sessionStorage.getItem('token');
@@ -33,7 +32,6 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('✅ Socket connected successfully');
-      this.reconnectAttempts = 0;
     });
 
     this.socket.on('disconnect', (reason) => {

@@ -14,13 +14,15 @@ interface WishlistRoom {
 
 interface WishlistInterfaceProps {
   wishlistRooms: WishlistRoom[];
-  onRemoveFromWishlist: (roomNumber: string, buildingNumber: number) => void;
-  onHome?: () => void;
-  onBooking: (bookingData: any) => void;
+  onClose: () => void;
+  onRemoveFromWishlist: (roomNumber: string, buildingNumber: number) => Promise<void>;
+  onHome: () => void;
+  onBooking: (bookingData: any) => Promise<any>;
 }
 
 export function WishlistInterface({ 
   wishlistRooms, 
+  onClose,
   onRemoveFromWishlist,
   onHome,
   onBooking 
