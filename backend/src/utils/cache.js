@@ -14,9 +14,9 @@ class RedisCache {
       // Handle Redis Cloud URL format
       let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
       
-      // Fix URL if password is missing
-      if (redisUrl.includes('redis-10708.c259.us-central1-2.gce.redns.redis-cloud.com') && !redisUrl.includes('VS4is70BiEVTuDE23Gz7vE0oq0WZiMvz')) {
-        redisUrl = 'redis://default:VS4is70BiEVTuDE23Gz7vE0oq0WZiMvz@redis-10708.c259.us-central1-2.gce.redns.redis-cloud.com:10708';
+      // Fix URL for Redis Cloud SSL
+      if (redisUrl.includes('redis-10708.c259.us-central1-2.gce.redns.redis-cloud.com')) {
+        redisUrl = 'rediss://default:VS4is70BiEVTuDE23Gz7vE0oq0WZiMvz@redis-10708.c259.us-central1-2.gce.redns.redis-cloud.com:10708';
       }
       
       console.log('🔗 Connecting to Redis:', redisUrl.replace(/:[^:@]*@/, ':***@'));
@@ -26,7 +26,8 @@ class RedisCache {
         socket: {
           connectTimeout: 10000,
           lazyConnect: true,
-          reconnectStrategy: (retries) => Math.min(retries * 100, 2000)
+          reconnectStrategy: (retries) => Math.min(retries * 100, 2000),
+          tls: redisUrl.startsWith('rediss://') ? {} : undefined
         }
       };
       
