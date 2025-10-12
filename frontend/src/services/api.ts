@@ -318,6 +318,52 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Dashboard APIs
+  async getDashboardRoomTypes() {
+    return this.request('/dashboard/room-types');
+  }
+
+  async getDashboardRoomStatus() {
+    return this.request('/dashboard/room-status');
+  }
+
+  async getDashboardRoomCapacity() {
+    return this.request('/dashboard/room-capacity');
+  }
+
+  async getDashboardActiveSessions() {
+    return this.request('/dashboard/active-sessions');
+  }
+
+  async getDashboardMaintenance() {
+    return this.request('/dashboard/maintenance');
+  }
+
+  // Analytics APIs
+  async getFailedLogins() {
+    return this.request('/analytics/security/failed-logins');
+  }
+
+  async getAllLogs(action?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (action) params.append('action', action);
+    if (limit) params.append('limit', limit.toString());
+    return this.request(`/analytics/all-logs${params.toString() ? '?' + params.toString() : ''}`);
+  }
+
+  async cleanupLogs() {
+    return this.request('/analytics/cleanup', {
+      method: 'POST',
+    });
+  }
+
+  async createBulkBooking(data: any) {
+    return this.request('/bookings/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiService = new ApiService();

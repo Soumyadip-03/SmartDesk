@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Users, Activity, Trash2, Settings, Search, Calendar } from 'lucide-react';
 import { SharedSidebar } from './SharedSidebar';
 import { useTheme } from '../contexts/ThemeContext';
+import { apiService } from '../services/api';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -73,23 +74,17 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:3001/api/analytics/security/failed-logins', {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setFailedLogins(data);
-        setLastFetchTime(prev => ({ ...prev, security: now }));
-      } else if (response.status === 403) {
+      const data = await apiService.getFailedLogins();
+      setFailedLogins(data);
+      setLastFetchTime(prev => ({ ...prev, security: now }));
+    } catch (error: any) {
+      console.error('Failed to fetch failed logins:', error);
+      if (error.message.includes('403')) {
         setError('Access denied. Admin privileges required.');
         setIsAuthorized(false);
       } else {
-        setError('Failed to load security data.');
+        setError('Network error. Please try again.');
       }
-    } catch (error) {
-      console.error('Failed to fetch failed logins:', error);
-      setError('Network error. Please try again.');
     }
     setLoading(false);
     setIsRefreshing(false);
@@ -109,32 +104,26 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:3001/api/analytics/all-logs?action=LOGIN&limit=200', {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
+      const data = await apiService.getAllLogs('LOGIN', 200);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentSessions = data.filter((session: any) => 
+        new Date(session.createdAt) >= thirtyDaysAgo
+      );
       
-      if (response.ok) {
-        const data = await response.json();
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const recentSessions = data.filter((session: any) => 
-          new Date(session.createdAt) >= thirtyDaysAgo
-        );
-        
-        setActiveSessions(recentSessions);
-        localStorage.setItem('admin_sessions_cache', JSON.stringify({
-          data: recentSessions,
-          timestamp: now
-        }));
-        setLastFetchTime(prev => ({ ...prev, sessions: now }));
-      } else if (response.status === 403) {
+      setActiveSessions(recentSessions);
+      localStorage.setItem('admin_sessions_cache', JSON.stringify({
+        data: recentSessions,
+        timestamp: now
+      }));
+      setLastFetchTime(prev => ({ ...prev, sessions: now }));
+    } catch (error: any) {
+      console.error('Failed to fetch active sessions:', error);
+      if (error.message.includes('403')) {
         setError('Access denied. Admin privileges required.');
         setIsAuthorized(false);
       } else {
-        setError('Failed to load session data.');
+        setError('Network error. Please try again.');
       }
-    } catch (error) {
-      console.error('Failed to fetch active sessions:', error);
-      setError('Network error. Please try again.');
     }
     setLoading(false);
     setIsRefreshing(false);
@@ -167,22 +156,17 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:3001/api/rooms', {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setRooms(data);
-        setLastFetchTime(prev => ({ ...prev, rooms: now }));
-      } else if (response.status === 403) {
+      const data = await apiService.getRooms();
+      setRooms(data);
+      setLastFetchTime(prev => ({ ...prev, rooms: now }));
+    } catch (error: any) {
+      console.error('Failed to fetch rooms:', error);
+      if (error.message.includes('403')) {
         setError('Access denied. Admin privileges required.');
         setIsAuthorized(false);
       } else {
-        setError('Failed to load room data.');
+        setError('Network error. Please try again.');
       }
-    } catch (error) {
-      console.error('Failed to fetch rooms:', error);
-      setError('Network error. Please try again.');
     }
     setLoading(false);
   };
@@ -191,24 +175,15 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
 
   const updateRoomStatus = async (roomNumber: string, buildingNumber: string, roomStatus: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/rooms/${roomNumber}/${buildingNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ roomStatus })
-      });
-      if (response.ok) {
-        setRooms(prev => prev.map((room: any) => 
-          room.rNo === roomNumber && room.bNo.toString() === buildingNumber ? { ...room, rStatus: roomStatus } : room
-        ));
-        // Clear building cache to force refresh on home page
-        if ((window as any).roomCache) {
-          (window as any).roomCache.delete(`building-${buildingNumber}`);
-        }
-        alert('Room status updated successfully!');
+      await apiService.updateRoomStatus(roomNumber, buildingNumber, roomStatus);
+      setRooms(prev => prev.map((room: any) => 
+        room.rNo === roomNumber && room.bNo.toString() === buildingNumber ? { ...room, rStatus: roomStatus } : room
+      ));
+      // Clear building cache to force refresh on home page
+      if ((window as any).roomCache) {
+        (window as any).roomCache.delete(`building-${buildingNumber}`);
       }
+      alert('Room status updated successfully!');
     } catch (error) {
       console.error('Failed to update room status:', error);
       alert('Failed to update room status');
@@ -217,24 +192,15 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
 
   const updateRoomCapacity = async (roomNumber: string, buildingNumber: string, capacity: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/rooms/${roomNumber}/${buildingNumber}/capacity`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ capacity })
-      });
-      if (response.ok) {
-        setRooms(prev => prev.map((room: any) => 
-          room.rNo === roomNumber && room.bNo.toString() === buildingNumber ? { ...room, capacity: parseInt(capacity) } : room
-        ));
-        // Clear building cache to force refresh on home page
-        if ((window as any).roomCache) {
-          (window as any).roomCache.delete(`building-${buildingNumber}`);
-        }
-        alert('Room capacity updated successfully!');
+      await apiService.updateRoomCapacity(roomNumber, buildingNumber, parseInt(capacity));
+      setRooms(prev => prev.map((room: any) => 
+        room.rNo === roomNumber && room.bNo.toString() === buildingNumber ? { ...room, capacity: parseInt(capacity) } : room
+      ));
+      // Clear building cache to force refresh on home page
+      if ((window as any).roomCache) {
+        (window as any).roomCache.delete(`building-${buildingNumber}`);
       }
+      alert('Room capacity updated successfully!');
     } catch (error) {
       console.error('Failed to update room capacity:', error);
       alert('Failed to update room capacity');
@@ -286,18 +252,10 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
         setSelectedRoom((prev: any) => prev ? { ...prev, rType: roomType } : null);
         
         // Sync to database in background
-        const response = await fetch(`http://localhost:3001/api/rooms/${selectedRoom.rNo}/${selectedRoom.bNo}/type`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ roomType })
-        });
-        
-        if (response.ok) {
+        try {
+          await apiService.updateRoomType(selectedRoom.rNo, selectedRoom.bNo.toString(), roomType);
           console.log(`✅ Room ${selectedRoom.rNo}-${selectedRoom.bNo} tagged as ${roomType}`);
-        } else {
+        } catch (error) {
           console.error('❌ Failed to sync room type to database');
           // Revert UI change if database sync failed
           setRooms(prev => prev.map((room: any) => 
@@ -326,24 +284,16 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:3001/api/rooms', {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      const data = await apiService.getRooms();
+      const totalRooms = data.length;
+      const maintenanceRooms = data.filter((room: any) => room.rStatus === 'Maintenance').length;
+      setMaintenanceStats({ 
+        totalRooms, 
+        maintenanceRooms, 
+        lastUpdated: new Date().toLocaleString() 
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const totalRooms = data.length;
-        const maintenanceRooms = data.filter((room: any) => room.rStatus === 'Maintenance').length;
-        setMaintenanceStats({ 
-          totalRooms, 
-          maintenanceRooms, 
-          lastUpdated: new Date().toLocaleString() 
-        });
-        setLastFetchTime(prev => ({ ...prev, maintenance: now }));
-      } else {
-        setError('Failed to load maintenance data.');
-      }
-    } catch (error) {
+      setLastFetchTime(prev => ({ ...prev, maintenance: now }));
+    } catch (error: any) {
       console.error('Failed to fetch maintenance stats:', error);
       setError('Network error. Please try again.');
     }
@@ -354,16 +304,8 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
   const cleanupOldLogs = async () => {
     if (!isAuthorized) return;
     try {
-      const response = await fetch('http://localhost:3001/api/analytics/cleanup', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        alert(data.message);
-      } else {
-        setError('Failed to cleanup logs.');
-      }
+      const data = await apiService.cleanupLogs();
+      alert(data.message);
     } catch (error) {
       console.error('Failed to cleanup logs:', error);
       setError('Network error during cleanup.');
@@ -1087,25 +1029,11 @@ export const AdminDashboard = ({ onClose, onHome, onAccount, onSettings, onLogou
                     };
                     
                     try {
-                      const response = await fetch('http://localhost:3001/api/bookings/bulk', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-                        },
-                        body: JSON.stringify(data)
-                      });
-                      
-                      if (response.ok) {
-                        const result = await response.json();
-                        alert(`Successfully created ${result.count} bookings!`);
-                        e.currentTarget.reset();
-                      } else {
-                        const error = await response.json();
-                        alert(`Failed: ${error.message}`);
-                      }
-                    } catch (error) {
-                      alert('Network error. Please try again.');
+                      const result = await apiService.createBulkBooking(data);
+                      alert(`Successfully created ${result.count} bookings!`);
+                      e.currentTarget.reset();
+                    } catch (error: any) {
+                      alert(`Failed: ${error.message || 'Network error. Please try again.'}`);
                     }
                   }} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
