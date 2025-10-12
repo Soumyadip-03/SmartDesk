@@ -47,10 +47,16 @@ class RedisCache {
         this.connected = true;
       });
       
+      this.client.on('end', () => {
+        console.log('🔌 Redis connection ended');
+        this.connected = false;
+      });
+      
       await this.client.connect();
       console.log('🔗 Testing Redis connection...');
       await this.client.ping();
-      console.log('✅ Redis ping successful');
+      console.log('✅ Redis connected successfully!');
+      this.connected = true;
     } catch (error) {
       console.log('💾 Memory cache active. Redis error:', error.message);
       console.log('🔍 Redis URL format:', process.env.REDIS_URL ? 'Set' : 'Missing');
