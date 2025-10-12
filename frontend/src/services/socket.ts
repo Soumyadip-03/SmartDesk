@@ -2,7 +2,6 @@ import { io, Socket } from 'socket.io-client';
 
 class SocketService {
   private socket: Socket | null = null;
-  // Removed unused variables to fix TypeScript warnings
 
   connect() {
     const token = sessionStorage.getItem('token');
