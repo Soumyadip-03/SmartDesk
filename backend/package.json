@@ -9,7 +9,7 @@
     "seed": "node seed.js",
     "seed:minimal": "node minimal-seed.js",
     "migrate": "prisma migrate deploy",
-    "postinstall": "prisma generate && prisma db push && node production-seed.js"
+    "postinstall": "prisma generate && prisma db push"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
