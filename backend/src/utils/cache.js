@@ -11,18 +11,18 @@ class RedisCache {
 
   async init() {
     try {
+      // Handle Redis Cloud URL format
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      console.log('🔗 Connecting to Redis:', redisUrl.replace(/:[^:@]*@/, ':***@'));
+      
       const redisConfig = {
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: redisUrl,
         socket: {
-          connectTimeout: 5000,
+          connectTimeout: 10000,
           lazyConnect: true,
-          reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
+          reconnectStrategy: (retries) => Math.min(retries * 100, 2000)
         }
       };
-      
-      if (process.env.REDIS_PASSWORD) {
-        redisConfig.password = process.env.REDIS_PASSWORD;
-      }
       
       this.client = createClient(redisConfig);
       
@@ -46,6 +46,7 @@ class RedisCache {
       console.log('✅ Redis ping successful');
     } catch (error) {
       console.log('💾 Memory cache active. Redis error:', error.message);
+      console.log('🔍 Redis URL format:', process.env.REDIS_URL ? 'Set' : 'Missing');
       this.connected = false;
       this.errorLogged = true;
     }
