@@ -13,7 +13,7 @@ class ChatbotService {
     } else {
       console.log('Initializing Gemini AI with API key:', apiKey.substring(0, 10) + '...');
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     }
     
     // SmartDesk context and training data
@@ -260,7 +260,7 @@ User: "System reliability?" → Bot: "ACID database compliance, automated backup
         return this.getFallbackResponse(userMessage, context);
       }
       
-      console.log('✅ Attempting Gemini API call with model: gemini-2.0-flash-exp');
+      console.log('✅ Attempting Gemini API call with model: gemini-1.5-flash');
       console.log('User message:', userMessage);
 
       const prompt = `
