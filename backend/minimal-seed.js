@@ -61,7 +61,9 @@ async function main() {
         { name: 'Building - 02' },
         { name: 'Building - 03' },
         { name: 'Building - 04' },
-        { name: 'Building - 05' }
+        { name: 'Building - 05' },
+        { name: 'Building - 06' },
+        { name: 'Building - 07' }
       ];
 
       for (const building of buildings) {
@@ -83,7 +85,7 @@ async function main() {
     if (roomCount === 0) {
       const roomTypes = ['Classroom', 'Lab', 'Lecture Hall', 'Conference Room'];
       
-      for (let bNo = 1; bNo <= 5; bNo++) {
+      for (let bNo = 1; bNo <= 7; bNo++) {
         for (let floor = 1; floor <= 3; floor++) {
           for (let room = 1; room <= 4; room++) {
             const rNo = `${floor}0${room}`;

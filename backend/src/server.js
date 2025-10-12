@@ -12,6 +12,7 @@ import analyticsRoutes from './routes/analytics.js';
 import roomRoutes from './routes/rooms.js';
 import chatbotRoutes from './routes/chatbot.js';
 import healthRoutes from './routes/health.js';
+import dashboardRoutes from './routes/dashboard.js';
 import { authenticateToken } from './middleware/auth.js';
 import { sanitizeForLog } from './utils/sanitize.js';
 import { initializeSocket } from './socket/socketHandler.js';
@@ -28,7 +29,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // CORS configuration
 app.use(cors({
   origin: isProduction ? 
-    [process.env.FRONTEND_URL || 'https://your-domain.com'] : 
+    ['https://smartdesk-frontend-8ptb2r3gt-soumyadip-03s-projects.vercel.app', 'https://smartdesk-frontend-soumyadip-03s-projects.vercel.app'] : 
     ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -60,6 +61,7 @@ app.use('/api/notifications', authenticateToken, notificationRoutes);
 app.use('/api/analytics', authenticateToken, analyticsRoutes);
 app.use('/api/rooms', authenticateToken, roomRoutes);
 app.use('/api/chatbot', authenticateToken, chatbotRoutes);
+app.use('/api/dashboard', authenticateToken, dashboardRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
