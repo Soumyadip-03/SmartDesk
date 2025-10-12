@@ -7,7 +7,22 @@ import { sanitizeInput } from '../utils/sanitize.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.post('/register', async (req, res) => {
+// CSRF validation middleware
+const validateCSRF = (req, res, next) => {
+  const csrfToken = req.headers['x-csrf-token'] || req.body.csrfToken;
+  if (!csrfToken) {
+    return res.status(403).json({ error: 'CSRF token required' });
+  }
+  
+  try {
+    jwt.verify(csrfToken, process.env.JWT_SECRET);
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+};
+
+router.post('/register', validateCSRF, async (req, res) => {
   try {
     const { email, name, establishmentId, facultyId, password } = req.body;
     const sanitizedEmail = sanitizeInput(email);
@@ -121,7 +136,24 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', validateCSRF, async (req, res) => {
+  // Rate limiting check
+  const ipAddress = req.ip || req.connection.remoteAddress;
+  const recentAttempts = await prisma.auditLog.count({
+    where: {
+      ipAddress,
+      action: 'FAILED_LOGIN',
+      createdAt: {
+        gte: new Date(Date.now() - 15 * 60 * 1000) // Last 15 minutes
+      }
+    }
+  });
+  
+  if (recentAttempts >= 5) {
+    return res.status(429).json({ 
+      error: 'Too many failed login attempts. Please try again in 15 minutes.' 
+    });
+  }
   try {
     const { email, password } = req.body;
     const sanitizedEmail = sanitizeInput(email);
@@ -270,7 +302,13 @@ router.post('/login', async (req, res) => {
 
 // CSRF token endpoint
 router.get('/csrf-token', (req, res) => {
-  res.json({ csrfToken: 'dummy-token' });
+  // Generate a proper CSRF token
+  const csrfToken = jwt.sign(
+    { type: 'csrf', timestamp: Date.now() }, 
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+  res.json({ csrfToken });
 });
 
 // Debug endpoint to test Prisma
@@ -301,13 +339,9 @@ router.get('/debug-db', async (req, res) => {
 });
 
 // Get user profile
-router.get('/profile', async (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = req.user;
     
     const user = await prisma.user.findUnique({
       where: { fId: decoded.facultyId },
@@ -351,13 +385,9 @@ router.get('/profile', async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', async (req, res) => {
+router.put('/profile', validateCSRF, authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = req.user;
     const { name, department, phoneNumber, username, profilePicture } = req.body;
     const sanitizedName = name ? sanitizeInput(name) : null;
     const sanitizedDepartment = department ? sanitizeInput(department) : null;
@@ -422,11 +452,26 @@ router.put('/profile', async (req, res) => {
   }
 });
 
-// Get user settings
-router.get('/settings', async (req, res) => {
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+  
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+};
+
+// Get user settings
+router.get('/settings', authenticateToken, async (req, res) => {
+  try {
+    const decoded = req.user;
     
     const settings = await prisma.userSettings.findUnique({
       where: { fId: decoded.facultyId }
@@ -448,10 +493,9 @@ router.get('/settings', async (req, res) => {
 });
 
 // Update user settings
-router.put('/settings', async (req, res) => {
+router.put('/settings', validateCSRF, authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = req.user;
     const { language, theme, notifications } = req.body;
     
     const updatedSettings = await prisma.userSettings.upsert({
@@ -472,10 +516,9 @@ router.put('/settings', async (req, res) => {
 });
 
 // Logout endpoint
-router.post('/logout', async (req, res) => {
+router.post('/logout', validateCSRF, authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = req.user;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
     
@@ -509,10 +552,9 @@ router.post('/logout', async (req, res) => {
 });
 
 // Delete account
-router.delete('/delete-account', async (req, res) => {
+router.delete('/delete-account', validateCSRF, authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = req.user;
     
     // Get user info before deletion for logging
     const user = await prisma.user.findUnique({
@@ -539,10 +581,9 @@ router.delete('/delete-account', async (req, res) => {
 });
 
 // Change password
-router.put('/change-password', async (req, res) => {
+router.put('/change-password', validateCSRF, authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = req.user;
     const { currentPassword, newPassword } = req.body;
     
     // Get current user
