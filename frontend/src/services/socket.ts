@@ -17,7 +17,8 @@ class SocketService {
 
     console.log('🔌 Connecting to Socket.io...');
     
-    this.socket = io('http://localhost:3001', {
+    const socketUrl = process.env.VITE_SOCKET_URL || 'http://localhost:3001';
+    this.socket = io(socketUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
       timeout: 5000,
@@ -34,11 +35,12 @@ class SocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ Socket disconnected:', reason);
+      console.log('❌ Socket disconnected:', String(reason));
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error.message);
+      const sanitizedMessage = error?.message ? String(error.message).replace(/[\r\n]/g, '') : 'Unknown error';
+      console.error('❌ Socket connection error:', sanitizedMessage);
     });
 
     return this.socket;
@@ -52,35 +54,35 @@ class SocketService {
   }
 
   // Room status events
-  onRoomStatusChanged(callback: (data: { buildingNumber: string; roomNumber: string; status: string }) => void) {
+  onRoomStatusChanged(callback: (data: { buildingNumber: string; roomNumber: string; status: string }) => void): void {
     this.socket?.on('roomStatusChanged', callback);
   }
 
   // Booking events
-  onBookingUpdated(callback: (data: { booking: any }) => void) {
+  onBookingUpdated(callback: (data: { booking: { id: string; roomNumber: string; buildingNumber: string; status: string } }) => void): void {
     this.socket?.on('bookingUpdated', callback);
   }
 
   // Notification events
-  onNewNotification(callback: (data: { notification: any }) => void) {
+  onNewNotification(callback: (data: { notification: { id: string; message: string; type?: string; timestamp?: string } }) => void): void {
     this.socket?.on('newNotification', callback);
   }
 
   // Join/leave building rooms
-  joinBuilding(buildingNumber: string) {
+  joinBuilding(buildingNumber: string): void {
     this.socket?.emit('joinBuilding', buildingNumber);
   }
 
-  leaveBuilding(buildingNumber: string) {
+  leaveBuilding(buildingNumber: string): void {
     this.socket?.emit('leaveBuilding', buildingNumber);
   }
 
   // Remove listeners
-  off(event: string, callback?: (...args: any[]) => void) {
+  off(event: string, callback?: (...args: any[]) => void): void {
     this.socket?.off(event, callback);
   }
 
-  isConnected() {
+  isConnected(): boolean {
     return this.socket?.connected || false;
   }
 }
