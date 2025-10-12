@@ -87,28 +87,37 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
     return rooms;
   }, [buildingNumber]);
 
-  // Check if room is currently booked based on active bookings
+  // Optimized room status checker with caching
   const checkRoomCurrentStatus = async (rooms: Room[]) => {
+    const cacheKey = `bookings-${buildingNumber}-${new Date().toISOString().split('T')[0]}`;
+    
     try {
+      let allBookings = (window as any).bookingCache?.[cacheKey];
+      
+      if (!allBookings) {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        allBookings = await apiService.getBuildingBookings(buildingNumber, today);
+        
+        // Cache bookings for 30 seconds
+        if (!(window as any).bookingCache) (window as any).bookingCache = {};
+        (window as any).bookingCache[cacheKey] = allBookings;
+        setTimeout(() => {
+          delete (window as any).bookingCache[cacheKey];
+        }, 30000);
+      }
+      
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       
-      // Get all bookings for this building today
-      const allBookings = await apiService.getBuildingBookings(buildingNumber, today);
-      
       return rooms.map(room => {
-        // Check if room has an active booking right now
         const activeBooking = allBookings.find((booking: any) => {
-          if (booking.rNo !== room.rNo || booking.bNo !== room.bNo) return false;
-          if (booking.status === 'cancelled') return false;
+          if (booking.rNo !== room.rNo || booking.bNo !== room.bNo || booking.status === 'cancelled') return false;
           
-          // Check if booking is for today
           const bookingDate = new Date(booking.date).toISOString().split('T')[0];
           if (bookingDate !== today) return false;
           
-          // Parse booking times
           let bookingStart, bookingEnd;
-          
           if (booking.startTime.includes('T')) {
             bookingStart = new Date(booking.startTime);
             bookingEnd = new Date(booking.endTime);
@@ -120,16 +129,9 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
           return now >= bookingStart && now <= bookingEnd;
         });
         
-        // Update room status based on active booking
-        if (activeBooking) {
-          return { ...room, rStatus: 'Booked' };
-        }
-        
-        // Don't change status if no active booking - preserve existing status
-        return room;
+        return activeBooking ? { ...room, rStatus: 'Booked' } : room;
       });
     } catch (error) {
-      console.error('Failed to check room status:', error);
       return rooms;
     }
   };
@@ -137,69 +139,73 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
   useEffect(() => {
     const cacheKey = `building-${buildingNumber}`;
     
-    // Check cache first - instant load for rapid switching
+    // Always show static rooms immediately - no loading state
+    setAllRooms(generateStaticRooms);
+    setLoading(false);
+    
+    // Check cache for instant update
     if (roomCache.has(cacheKey)) {
       const cachedRooms = roomCache.get(cacheKey)!;
       setAllRooms(cachedRooms);
-      setLoading(false);
-      
-      // Update room statuses based on current time
-      checkRoomCurrentStatus(cachedRooms).then(updatedRooms => {
-        setAllRooms(updatedRooms);
-        roomCache.set(cacheKey, updatedRooms);
-      });
-      return;
     }
     
-    // Show static rooms immediately
-    setAllRooms(generateStaticRooms);
-    setLoading(true);
-    
-    // Fetch live API data in background
+    // Fetch live data in background without blocking UI
     const fetchLiveData = async () => {
       try {
-        const backendRooms = await apiService.getBuildingRooms(buildingNumber);
+        // Fast parallel requests
+        const [backendRooms, buildingBookings] = await Promise.all([
+          apiService.getBuildingRooms(buildingNumber).catch(() => []),
+          apiService.getBuildingBookings(buildingNumber, new Date().toISOString().split('T')[0]).catch(() => [])
+        ]);
         
-        if (backendRooms && backendRooms.length > 0) {
-          const updatedRooms = generateStaticRooms.map(frontendRoom => {
-            const backendRoom = backendRooms.find((br: any) => 
-              br.rNo === frontendRoom.rNo && br.bNo === frontendRoom.bNo
-            );
-            if (backendRoom) {
-              return {
-                ...frontendRoom,
-                rType: backendRoom.rType || "Undefined",
-                rStatus: backendRoom.rStatus || "Available",
-                capacity: backendRoom.capacity || 0
-              };
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        
+        const updatedRooms = generateStaticRooms.map(frontendRoom => {
+          // Merge backend data
+          const backendRoom = backendRooms.find((br: any) => 
+            br.rNo === frontendRoom.rNo && br.bNo === frontendRoom.bNo
+          );
+          
+          // Check active booking
+          const activeBooking = buildingBookings.find((booking: any) => {
+            if (booking.rNo !== frontendRoom.rNo || booking.status === 'cancelled') return false;
+            
+            const bookingDate = new Date(booking.date).toISOString().split('T')[0];
+            if (bookingDate !== today) return false;
+            
+            let bookingStart, bookingEnd;
+            if (booking.startTime.includes('T')) {
+              bookingStart = new Date(booking.startTime);
+              bookingEnd = new Date(booking.endTime);
+            } else {
+              bookingStart = new Date(`${booking.date}T${booking.startTime}:00`);
+              bookingEnd = new Date(`${booking.date}T${booking.endTime}:00`);
             }
-            return frontendRoom;
+            
+            return now >= bookingStart && now <= bookingEnd;
           });
           
-          // Check current booking status
-          const roomsWithCurrentStatus = await checkRoomCurrentStatus(updatedRooms);
-          
-          // Cache the live data for instant future access
-          roomCache.set(cacheKey, roomsWithCurrentStatus);
-          (window as any).roomCache = roomCache;
-          setAllRooms(roomsWithCurrentStatus);
-        } else {
-          // Check current status for static rooms
-          const roomsWithCurrentStatus = await checkRoomCurrentStatus(generateStaticRooms);
-          roomCache.set(cacheKey, roomsWithCurrentStatus);
-          setAllRooms(roomsWithCurrentStatus);
-        }
+          return {
+            ...frontendRoom,
+            rType: backendRoom?.rType || "Undefined",
+            rStatus: activeBooking ? 'Booked' : (backendRoom?.rStatus || "Available"),
+            capacity: backendRoom?.capacity || 0
+          };
+        });
+        
+        // Update UI and cache
+        setAllRooms(updatedRooms);
+        roomCache.set(cacheKey, updatedRooms);
+        setLastRefresh(new Date());
       } catch (error) {
-        console.log('API loading in background, using static structure');
-        const roomsWithCurrentStatus = await checkRoomCurrentStatus(generateStaticRooms);
-        roomCache.set(cacheKey, roomsWithCurrentStatus);
-        setAllRooms(roomsWithCurrentStatus);
-      } finally {
-        setLoading(false);
+        console.log('Background update failed, using static rooms');
       }
     };
 
-    fetchLiveData();
+    // Debounced background update
+    const timeoutId = setTimeout(fetchLiveData, 200);
+    return () => clearTimeout(timeoutId);
   }, [buildingNumber, generateStaticRooms]);
 
 
@@ -234,18 +240,52 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
     };
   }, [buildingNumber]);
 
-  // Timer to check room statuses every 5 seconds
+  // Lightweight timer for status updates
   useEffect(() => {
     const timer = setInterval(async () => {
-      const updatedRooms = await checkRoomCurrentStatus(allRooms);
-      setAllRooms(updatedRooms);
-      const cacheKey = `building-${buildingNumber}`;
-      roomCache.set(cacheKey, updatedRooms);
-      setLastRefresh(new Date());
-    }, 5000); // Check every 5 seconds
+      try {
+        const buildingBookings = await apiService.getBuildingBookings(buildingNumber, new Date().toISOString().split('T')[0]);
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        
+        setAllRooms(prevRooms => {
+          const updatedRooms = prevRooms.map(room => {
+            const activeBooking = buildingBookings.find((booking: any) => {
+              if (booking.rNo !== room.rNo || booking.status === 'cancelled') return false;
+              const bookingDate = new Date(booking.date).toISOString().split('T')[0];
+              if (bookingDate !== today) return false;
+              
+              let bookingStart, bookingEnd;
+              if (booking.startTime.includes('T')) {
+                bookingStart = new Date(booking.startTime);
+                bookingEnd = new Date(booking.endTime);
+              } else {
+                bookingStart = new Date(`${booking.date}T${booking.startTime}:00`);
+                bookingEnd = new Date(`${booking.date}T${booking.endTime}:00`);
+              }
+              
+              return now >= bookingStart && now <= bookingEnd;
+            });
+            
+            return {
+              ...room,
+              rStatus: activeBooking ? 'Booked' : (room.rStatus === 'Maintenance' ? 'Maintenance' : 'Available')
+            };
+          });
+          
+          const cacheKey = `building-${buildingNumber}`;
+          roomCache.set(cacheKey, updatedRooms);
+          return updatedRooms;
+        });
+        
+        setLastRefresh(new Date());
+      } catch (error) {
+        // Silent fail for background updates
+      }
+    }, 15000); // Check every 15 seconds
 
     return () => clearInterval(timer);
-  }, [allRooms, buildingNumber]);
+  }, [buildingNumber]);
 
   const filteredRooms = allRooms.filter(room => {
     const typeMatch = roomTypeFilter === "all type" || room.rType === roomTypeFilter;
@@ -438,14 +478,54 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
               </span>
               <button
                 onClick={async () => {
-                  setLoading(true);
                   const cacheKey = `building-${buildingNumber}`;
                   roomCache.delete(cacheKey);
-                  const updatedRooms = await checkRoomCurrentStatus(allRooms);
-                  setAllRooms(updatedRooms);
-                  roomCache.set(cacheKey, updatedRooms);
-                  setLastRefresh(new Date());
-                  setLoading(false);
+                  
+                  try {
+                    const [backendRooms, buildingBookings] = await Promise.all([
+                      apiService.getBuildingRooms(buildingNumber),
+                      apiService.getBuildingBookings(buildingNumber, new Date().toISOString().split('T')[0])
+                    ]);
+                    
+                    const now = new Date();
+                    const today = now.toISOString().split('T')[0];
+                    
+                    const updatedRooms = generateStaticRooms.map(frontendRoom => {
+                      const backendRoom = backendRooms.find((br: any) => 
+                        br.rNo === frontendRoom.rNo && br.bNo === frontendRoom.bNo
+                      );
+                      
+                      const activeBooking = buildingBookings.find((booking: any) => {
+                        if (booking.rNo !== frontendRoom.rNo || booking.status === 'cancelled') return false;
+                        const bookingDate = new Date(booking.date).toISOString().split('T')[0];
+                        if (bookingDate !== today) return false;
+                        
+                        let bookingStart, bookingEnd;
+                        if (booking.startTime.includes('T')) {
+                          bookingStart = new Date(booking.startTime);
+                          bookingEnd = new Date(booking.endTime);
+                        } else {
+                          bookingStart = new Date(`${booking.date}T${booking.startTime}:00`);
+                          bookingEnd = new Date(`${booking.date}T${booking.endTime}:00`);
+                        }
+                        
+                        return now >= bookingStart && now <= bookingEnd;
+                      });
+                      
+                      return {
+                        ...frontendRoom,
+                        rType: backendRoom?.rType || "Undefined",
+                        rStatus: activeBooking ? 'Booked' : (backendRoom?.rStatus || "Available"),
+                        capacity: backendRoom?.capacity || 0
+                      };
+                    });
+                    
+                    setAllRooms(updatedRooms);
+                    roomCache.set(cacheKey, updatedRooms);
+                    setLastRefresh(new Date());
+                  } catch (error) {
+                    console.error('Refresh failed:', error);
+                  }
                 }}
                 className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
                   theme === 'dark'
