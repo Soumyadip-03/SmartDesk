@@ -195,9 +195,11 @@ router.post('/swap', authenticateToken, async (req, res) => {
       data: { rStatus: 'Booked' }
     });
     
-    // Invalidate cache for both rooms
+    // Invalidate cache for both rooms and buildings
     await cache.invalidateRoom(currentBuildingNumber, currentRoomNumber);
     await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
+    await cache.clearBuildingCache(currentBuildingNumber);
+    await cache.clearBuildingCache(parseInt(buildingNumber));
     await cache.delete('all_rooms_status');
 
     // Get user name for notification
@@ -289,6 +291,7 @@ router.post('/', authenticateToken, async (req, res) => {
       
       // Invalidate cache
       await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
+      await cache.clearBuildingCache(parseInt(buildingNumber));
       await cache.delete('all_rooms_status');
     }
 
@@ -408,6 +411,7 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
 
     // Invalidate cache
     await cache.invalidateRoom(booking.bNo, booking.rNo);
+    await cache.clearBuildingCache(booking.bNo);
     await cache.delete('all_rooms_status');
 
     // Emit real-time updates
@@ -468,6 +472,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     // Invalidate cache
     await cache.invalidateRoom(booking.bNo, booking.rNo);
+    await cache.clearBuildingCache(booking.bNo);
     await cache.delete('all_rooms_status');
 
     // Emit real-time updates

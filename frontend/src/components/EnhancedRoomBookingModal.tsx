@@ -77,7 +77,21 @@ export const EnhancedRoomBookingModal = ({
       }
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to create booking');
+      let errorMessage = 'Failed to create booking';
+      
+      if (err.message) {
+        if (err.message.includes('timeout')) {
+          errorMessage = 'Request timed out. Please check your connection and try again.';
+        } else if (err.message.includes('Network error')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else if (err.message.includes('already booked')) {
+          errorMessage = 'This room is already booked for the selected time.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -2,6 +2,12 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'https://smartdes
 
 class ApiService {
   private csrfToken: string | null = null;
+  private retryCount = 3;
+  private retryDelay = 1000;
+
+  private async sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
   private getAuthHeaders() {
     const token = sessionStorage.getItem('token');
@@ -39,46 +45,70 @@ class ApiService {
   }
 
   async request(endpoint: string, options: RequestInit = {}) {
-    try {
-      console.log('Making request to:', `${API_BASE_URL}${endpoint}`);
-      
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= this.retryCount; attempt++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
-          ...options.headers,
-        },
-        signal: controller.signal,
-        ...options,
-      });
-      
-      clearTimeout(timeoutId);
+      try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            ...this.getAuthHeaders(),
+            ...options.headers,
+          },
+          signal: controller.signal,
+          ...options,
+        });
+        
+        clearTimeout(timeoutId);
 
-      console.log('Response status:', response.status);
-
-      if (response.status === 401 || response.status === 403) {
-        if (endpoint.includes('/auth/')) {
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('user');
-          window.location.reload();
-          return;
+        if (response.status === 401 || response.status === 403) {
+          if (!endpoint.includes('/auth/')) {
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('user');
+            window.location.reload();
+            return;
+          }
         }
-      }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Network error');
+          throw new Error(errorText || `HTTP ${response.status}`);
+        }
 
-      return response.json();
-    } catch (error) {
-      console.error('API Request Error:', error);
-      throw error;
+        return response.json();
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        lastError = error;
+        
+        if (error.name === 'AbortError') {
+          lastError = new Error('Request timeout - please try again');
+        } else if (!error.message) {
+          lastError = new Error('Network error - please check your connection');
+        }
+        
+        // Don't retry on auth errors or client errors (4xx)
+        if (error.message?.includes('401') || error.message?.includes('403') || 
+            error.message?.includes('400') || error.message?.includes('404')) {
+          throw lastError;
+        }
+        
+        // If this is the last attempt, throw the error
+        if (attempt === this.retryCount) {
+          throw lastError;
+        }
+        
+        // Wait before retrying
+        await this.sleep(this.retryDelay * attempt);
+      }
     }
+    
+    throw lastError!;
   }
 
   // Auth

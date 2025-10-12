@@ -131,6 +131,9 @@ class RedisCache {
         if (keys.length > 0) {
           await this.client.del(keys);
         }
+        // Clear building-level cache
+        await this.client.del(`building-${buildingNo}`);
+        await this.client.del(`bookings-${buildingNo}-*`);
       }
     } catch (error) {
       // Silent fail for Redis errors
@@ -141,7 +144,9 @@ class RedisCache {
       this.fallbackCache.delete(roomKey);
       // Clean related conflict cache in fallback
       for (const [key] of this.fallbackCache) {
-        if (key.startsWith(`conflict:${buildingNo}-${roomNo}-`)) {
+        if (key.startsWith(`conflict:${buildingNo}-${roomNo}-`) || 
+            key.startsWith(`building-${buildingNo}`) ||
+            key.startsWith(`bookings-${buildingNo}-`)) {
           this.fallbackCache.delete(key);
         }
       }
@@ -164,12 +169,56 @@ class RedisCache {
   }
 
   async clear() {
-    if (this.connected) {
-      await this.client.flushAll();
-    } else {
-      this.fallbackCache?.clear();
+    try {
+      if (this.connected && this.client?.isReady) {
+        await this.client.flushAll();
+      }
+    } catch (error) {
+      // Silent fail for Redis errors
+    }
+    
+    // Always clear fallback
+    if (this.fallbackCache) {
+      this.fallbackCache.clear();
+    }
+  }
+
+  async clearBuildingCache(buildingNo) {
+    try {
+      if (this.connected && this.client?.isReady) {
+        const keys = await this.client.keys(`*${buildingNo}*`);
+        if (keys.length > 0) {
+          await this.client.del(keys);
+        }
+      }
+    } catch (error) {
+      // Silent fail for Redis errors
+    }
+    
+    // Clear fallback cache
+    if (this.fallbackCache) {
+      for (const [key] of this.fallbackCache) {
+        if (key.includes(buildingNo.toString())) {
+          this.fallbackCache.delete(key);
+        }
+      }
     }
   }
 }
 
 export const cache = new RedisCache();
+
+// Clear browser cache on page load to prevent stale data
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    // Clear any cached data in localStorage that might be stale
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('room') || key.includes('booking') || key.includes('building'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  });
+}

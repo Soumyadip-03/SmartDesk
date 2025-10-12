@@ -10,6 +10,24 @@ const roomCache = new Map<string, Room[]>();
 // Make cache globally accessible for admin updates
 (window as any).roomCache = roomCache;
 
+// Clear stale cache on component load
+const clearStaleCache = () => {
+  const now = Date.now();
+  const cacheTimeout = 30000; // 30 seconds
+  
+  // Clear old cache entries
+  for (const [key, value] of roomCache.entries()) {
+    if (value && (value as any).timestamp && now - (value as any).timestamp > cacheTimeout) {
+      roomCache.delete(key);
+    }
+  }
+  
+  // Clear browser cache for room data
+  if (typeof window !== 'undefined') {
+    delete (window as any).bookingCache;
+  }
+};
+
 interface WishlistRoom {
   rNo: string;
   bNo: number;
@@ -137,6 +155,9 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
   };
 
   useEffect(() => {
+    // Clear stale cache first
+    clearStaleCache();
+    
     const cacheKey = `building-${buildingNumber}`;
     
     // Always show static rooms immediately - no loading state
@@ -480,6 +501,10 @@ export function BuildingDetail({ buildingNumber, onBack, onAddToWishlist, onBook
                 onClick={async () => {
                   const cacheKey = `building-${buildingNumber}`;
                   roomCache.delete(cacheKey);
+                  
+                  // Clear all related caches
+                  clearStaleCache();
+                  delete (window as any).bookingCache;
                   
                   try {
                     const [backendRooms, buildingBookings] = await Promise.all([
