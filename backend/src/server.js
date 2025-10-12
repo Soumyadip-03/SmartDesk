@@ -29,7 +29,14 @@ const isProduction = process.env.NODE_ENV === 'production';
 // CORS configuration
 app.use(cors({
   origin: isProduction ? 
-    ['https://smartdesk-frontend-8ptb2r3gt-soumyadip-03s-projects.vercel.app', 'https://smartdesk-frontend-soumyadip-03s-projects.vercel.app'] : 
+    (origin, callback) => {
+      // Allow any Vercel deployment URL
+      if (!origin || origin.includes('vercel.app') || origin.includes('smartdesk')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    } : 
     ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
