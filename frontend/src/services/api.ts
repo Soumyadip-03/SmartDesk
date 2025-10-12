@@ -38,21 +38,10 @@ class ApiService {
     return timeRegex.test(time);
   }
 
-  private requestCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-
-  async request(endpoint: string, options: RequestInit = {}, cacheTTL = 0) {
-    // Check cache for GET requests
-    const method = options.method || 'GET';
-    const cacheKey = `${method}:${endpoint}`;
-    
-    if (method === 'GET' && cacheTTL > 0) {
-      const cached = this.requestCache.get(cacheKey);
-      if (cached && (Date.now() - cached.timestamp) < cached.ttl) {
-        return cached.data;
-      }
-    }
-
+  async request(endpoint: string, options: RequestInit = {}) {
     try {
+      console.log('Making request to:', `${API_BASE_URL}${endpoint}`);
+      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1500);
       
@@ -68,6 +57,8 @@ class ApiService {
       
       clearTimeout(timeoutId);
 
+      console.log('Response status:', response.status);
+
       if (response.status === 401 || response.status === 403) {
         if (endpoint.includes('/auth/')) {
           sessionStorage.removeItem('token');
@@ -79,22 +70,13 @@ class ApiService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.log('Error response:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
-      
-      // Cache successful GET responses
-      if (method === 'GET' && cacheTTL > 0) {
-        this.requestCache.set(cacheKey, {
-          data,
-          timestamp: Date.now(),
-          ttl: cacheTTL
-        });
-      }
-
-      return data;
+      return response.json();
     } catch (error) {
+      console.error('API Request Error:', error);
       throw error;
     }
   }
@@ -158,26 +140,26 @@ class ApiService {
     });
   }
 
-  // Buildings (cached)
+  // Buildings
   async getBuildings() {
-    return this.request('/buildings', {}, 60000); // 1min cache
+    return this.request('/buildings');
   }
 
   async getBuilding(buildingNumber: string) {
-    return this.request(`/buildings/${buildingNumber}`, {}, 60000); // 1min cache
+    return this.request(`/buildings/${buildingNumber}`);
   }
 
   async getBuildingRooms(buildingNumber: string) {
-    return this.request(`/buildings/${buildingNumber}/rooms`, {}, 30000); // 30s cache
+    return this.request(`/buildings/${buildingNumber}/rooms`);
   }
 
-  // Rooms (cached)
+  // Rooms
   async getRooms() {
-    return this.request('/rooms', {}, 30000); // 30s cache
+    return this.request('/rooms');
   }
 
   async getRoomsByBuilding(buildingNumber: string) {
-    return this.request(`/buildings/${buildingNumber}/rooms`, {}, 30000); // 30s cache
+    return this.request(`/buildings/${buildingNumber}/rooms`);
   }
 
   async updateRoomType(roomNumber: string, buildingNumber: string, roomType: string) {
@@ -298,7 +280,7 @@ class ApiService {
   async getBuildingBookings(buildingNumber: string, date?: string) {
     const today = date || new Date().toISOString().split('T')[0];
     const params = new URLSearchParams({ date: today });
-    return this.request(`/bookings/building/${buildingNumber}?${params}`, {}, 15000); // 15s cache
+    return this.request(`/bookings/building/${buildingNumber}?${params}`);
   }
 
   // Wishlist

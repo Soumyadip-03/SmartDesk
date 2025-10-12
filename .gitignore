@@ -50,3 +50,11 @@ Thumbs.db
 
 # Prisma
 prisma/migrations/
+
+# Redis
+redis/
+*.rdb
+dump.rdb
+redis.conf
+redis-server
+redis-cli
