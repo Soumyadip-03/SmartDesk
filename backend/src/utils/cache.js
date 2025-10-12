@@ -27,7 +27,10 @@ class RedisCache {
       this.client = createClient(redisConfig);
       
       this.client.on('error', (err) => {
-        console.log('⚠️ Redis connection failed, using memory cache');
+        if (!this.errorLogged) {
+          console.log('💾 Memory cache active (Redis unavailable)');
+          this.errorLogged = true;
+        }
         this.connected = false;
       });
       
@@ -38,9 +41,13 @@ class RedisCache {
       });
       
       await this.client.connect();
+      console.log('🔗 Testing Redis connection...');
+      await this.client.ping();
+      console.log('✅ Redis ping successful');
     } catch (error) {
-      console.log('💾 Using memory cache (Redis unavailable)');
+      console.log('💾 Memory cache active. Redis error:', error.message);
       this.connected = false;
+      this.errorLogged = true;
     }
   }
 
