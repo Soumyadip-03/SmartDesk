@@ -134,12 +134,17 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
     
+    console.log('Searching for email:', sanitizedEmail);
+    
     const user = await prisma.user.findUnique({ 
       where: { fEmail: sanitizedEmail },
       include: { establishment: true }
     });
     
     console.log('User found:', !!user);
+    if (user) {
+      console.log('User details:', { fId: user.fId, fEmail: user.fEmail, fName: user.fName });
+    }
     
     if (!user) {
       console.log('Failed login attempt - user not found');
