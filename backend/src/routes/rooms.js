@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
       // Create lookup map for O(1) access
       const bookedRooms = new Set(activeBookings.map(b => `${b.bNo}-${b.rNo}`));
       
-      roomsWithStatus = rooms.map(room => {
+      roomsWithStatus = await Promise.all(rooms.map(async room => {
         let dynamicStatus = room.rStatus === 'Maintenance' ? 'Maintenance' : 
                            bookedRooms.has(`${room.bNo}-${room.rNo}`) ? 'Booked' : 'Available';
         
@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
         await cache.setRoomStatus(room.bNo, room.rNo, dynamicStatus);
         
         return { ...room, dynamicStatus };
-      });
+      }));
       
       await cache.set(cacheKey, roomsWithStatus, 15000); // 15 sec cache
     }

@@ -406,6 +406,10 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
       }
     }
 
+    // Invalidate cache
+    await cache.invalidateRoom(booking.bNo, booking.rNo);
+    await cache.delete('all_rooms_status');
+
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');
     emitBookingUpdate(req.user.facultyId, { ...booking, status: 'cancelled' });
@@ -461,6 +465,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       `${userName} deleted booking for Room ${booking.rNo} (Building ${booking.bNo}) ${timeStr}`,
       false
     );
+
+    // Invalidate cache
+    await cache.invalidateRoom(booking.bNo, booking.rNo);
+    await cache.delete('all_rooms_status');
 
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');

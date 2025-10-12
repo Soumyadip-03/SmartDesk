@@ -1,21 +1,29 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import { cache } from '../utils/cache.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get room statistics by type
+// Get room statistics by type (cached)
 router.get('/room-types', async (req, res) => {
   try {
-    const roomTypes = await prisma.room.groupBy({
-      by: ['rType'],
-      _count: { rType: true }
-    });
+    const cacheKey = 'dashboard_room_types';
+    let formattedData = await cache.get(cacheKey);
     
-    const formattedData = roomTypes.map(type => ({
-      type: type.rType || 'Undefined',
-      count: type._count.rType
-    }));
+    if (!formattedData) {
+      const roomTypes = await prisma.room.groupBy({
+        by: ['rType'],
+        _count: { rType: true }
+      });
+      
+      formattedData = roomTypes.map(type => ({
+        type: type.rType || 'Undefined',
+        count: type._count.rType
+      }));
+      
+      await cache.set(cacheKey, formattedData, 120000); // 2 min cache
+    }
     
     res.json(formattedData);
   } catch (error) {
@@ -76,7 +84,7 @@ router.get('/room-capacity', async (req, res) => {
   }
 });
 
-// Get active sessions (current bookings)
+// Get active sessions (current bookings) - real-time, no cache
 router.get('/active-sessions', async (req, res) => {
   try {
     const now = new Date();
