@@ -25,13 +25,13 @@ export function SharedSidebar({
   onHome, 
   onAccount, 
   onSettings, 
-  onWishlist,
-  onNotifications,
+  onWishlist: _onWishlist,
+  onNotifications: _onNotifications,
   onBookings,
   onAdmin,
   onLogout,
   bookingsCount = 0,
-  wishlistCount = 0,
+  wishlistCount: _wishlistCount = 0,
   children 
 }: SharedSidebarProps) {
   const { theme } = useTheme();

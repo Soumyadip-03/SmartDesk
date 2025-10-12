@@ -22,7 +22,7 @@ interface WishlistInterfaceProps {
 
 export function WishlistInterface({ 
   wishlistRooms, 
-  onClose,
+  onClose: _onClose,
   onRemoveFromWishlist,
   onHome,
   onBooking 
