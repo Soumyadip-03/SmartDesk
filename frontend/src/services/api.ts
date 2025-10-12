@@ -364,6 +364,13 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  async sendChatMessage(message: string, context: string = 'smartdesk_room_booking') {
+    return this.request('/chatbot', {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

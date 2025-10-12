@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, X, Minimize2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { apiService } from '../services/api';
 
 interface Message {
   id: string;
@@ -92,19 +93,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/chatbot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          message: inputText,
-          context: 'smartdesk_room_booking'
-        })
-      });
-
-      const data = await response.json();
+      const data = await apiService.sendChatMessage(inputText, 'smartdesk_room_booking');
       
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
