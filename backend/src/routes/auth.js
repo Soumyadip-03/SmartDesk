@@ -7,6 +7,22 @@ import { sanitizeInput } from '../utils/sanitize.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+};
+
 // CSRF validation middleware
 const validateCSRF = (req, res, next) => {
   const csrfToken = req.headers['x-csrf-token'] || req.body.csrfToken;
@@ -451,22 +467,6 @@ router.put('/profile', validateCSRF, authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to update profile', details: error.message });
   }
 });
-
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-  
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
-  }
-};
 
 // Get user settings
 router.get('/settings', authenticateToken, async (req, res) => {
