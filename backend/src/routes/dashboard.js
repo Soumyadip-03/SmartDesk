@@ -32,18 +32,25 @@ router.get('/room-types', async (req, res) => {
   }
 });
 
-// Get room statistics by status
+// Get room statistics by status (cached)
 router.get('/room-status', async (req, res) => {
   try {
-    const roomStatus = await prisma.room.groupBy({
-      by: ['rStatus'],
-      _count: { rStatus: true }
-    });
+    const cacheKey = 'dashboard_room_status';
+    let formattedData = await cache.get(cacheKey);
     
-    const formattedData = roomStatus.map(status => ({
-      status: status.rStatus || 'Unknown',
-      count: status._count.rStatus
-    }));
+    if (!formattedData) {
+      const roomStatus = await prisma.room.groupBy({
+        by: ['rStatus'],
+        _count: { rStatus: true }
+      });
+      
+      formattedData = roomStatus.map(status => ({
+        status: status.rStatus || 'Unknown',
+        count: status._count.rStatus
+      }));
+      
+      await cache.set(cacheKey, formattedData, 60000); // 1 min cache
+    }
     
     res.json(formattedData);
   } catch (error) {

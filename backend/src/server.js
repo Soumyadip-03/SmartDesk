@@ -17,6 +17,7 @@ import { authenticateToken } from './middleware/auth.js';
 import { sanitizeForLog } from './utils/sanitize.js';
 import { initializeSocket } from './socket/socketHandler.js';
 import { startBookingScheduler } from './utils/bookingScheduler.js';
+import { optimizeDatabase } from './utils/dbOptimize.js';
 
 dotenv.config();
 
@@ -94,6 +95,9 @@ server.listen(PORT, () => {
   // Start booking scheduler
   startBookingScheduler();
   console.log(`⏰ Booking scheduler started`);
+  
+  // Optimize database (safe indexes)
+  optimizeDatabase();
 });
 
 // Handle server errors
