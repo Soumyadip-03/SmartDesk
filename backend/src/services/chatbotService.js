@@ -13,7 +13,7 @@ class ChatbotService {
     } else {
       console.log('Initializing Gemini AI with API key:', apiKey.substring(0, 10) + '...');
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     }
     
     // SmartDesk context and training data
@@ -260,7 +260,9 @@ User: "System reliability?" → Bot: "ACID database compliance, automated backup
         return this.getFallbackResponse(userMessage, context);
       }
       
-      console.log('✅ Attempting Gemini API call with model: gemini-1.5-flash');
+      console.log('✅ Attempting Gemini API call with model: gemini-2.5-flash');
+      console.log('API Key present:', !!process.env.GEMINI_API_KEY);
+      console.log('API Key length:', process.env.GEMINI_API_KEY?.length);
       console.log('User message:', userMessage);
 
       const prompt = `
@@ -310,8 +312,11 @@ Provide a CONCISE, direct answer. Rules:
 - Be factual and brief
 `;
 
+      console.log('Sending prompt to Gemini...');
       const result = await this.model.generateContent(prompt);
+      console.log('Gemini result received, extracting response...');
       const response = await result.response;
+      console.log('Response extracted, getting text...');
       const responseText = response.text();
       console.log('✅ Gemini response received successfully:', responseText.substring(0, 100) + '...');
       return responseText;
