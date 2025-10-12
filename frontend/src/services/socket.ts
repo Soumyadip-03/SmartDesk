@@ -17,7 +17,8 @@ class SocketService {
 
     console.log('🔌 Connecting to Socket.io...');
     
-    const socketUrl = process.env.VITE_SOCKET_URL || 'http://localhost:3001';
+    const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 'http://localhost:3001';
+    console.log('🔌 Socket URL:', socketUrl);
     this.socket = io(socketUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
