@@ -273,6 +273,28 @@ router.get('/csrf-token', (req, res) => {
   res.json({ csrfToken: 'dummy-token' });
 });
 
+// Debug endpoint to test Prisma
+router.get('/debug-db', async (req, res) => {
+  try {
+    const userCount = await prisma.user.count();
+    const sampleUser = await prisma.user.findFirst({
+      select: { fEmail: true, fId: true, fName: true }
+    });
+    
+    res.json({
+      totalUsers: userCount,
+      sampleUser: sampleUser,
+      databaseUrl: process.env.DATABASE_URL ? 'Connected' : 'Missing',
+      prismaVersion: 'Connected'
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Prisma connection failed',
+      details: error.message
+    });
+  }
+});
+
 // Get user profile
 router.get('/profile', async (req, res) => {
   try {
