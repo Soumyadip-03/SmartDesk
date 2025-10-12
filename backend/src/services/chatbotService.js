@@ -13,7 +13,7 @@ class ChatbotService {
     } else {
       console.log('Initializing Gemini AI with API key:', apiKey.substring(0, 10) + '...');
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     }
     
     // SmartDesk context and training data
@@ -260,7 +260,8 @@ User: "System reliability?" → Bot: "ACID database compliance, automated backup
         return this.getFallbackResponse(userMessage, context);
       }
       
-      console.log('✅ Attempting Gemini API call with model: gemini-2.5-flash');
+      console.log('✅ Attempting Gemini API call with model: gemini-2.0-flash-exp');
+      console.log('User message:', userMessage);
 
       const prompt = `
 ${this.systemContext}
@@ -311,12 +312,24 @@ Provide a CONCISE, direct answer. Rules:
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      console.log('✅ Gemini response received successfully');
-      return response.text();
+      const responseText = response.text();
+      console.log('✅ Gemini response received successfully:', responseText.substring(0, 100) + '...');
+      return responseText;
       
     } catch (error) {
       console.error('❌ Gemini API Error:', error.message);
       console.error('Error details:', error);
+      console.error('Error stack:', error.stack);
+      
+      // Return a more specific error message for debugging
+      if (error.message.includes('API_KEY')) {
+        return 'API key issue detected. Please check the configuration.';
+      } else if (error.message.includes('quota')) {
+        return 'API quota exceeded. Using fallback response.';
+      } else if (error.message.includes('model')) {
+        return 'Model not found. Trying fallback response.';
+      }
+      
       return this.getFallbackResponse(userMessage, context);
     }
   }
