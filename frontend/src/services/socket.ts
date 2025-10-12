@@ -22,13 +22,13 @@ class SocketService {
     this.socket = io(socketUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
-      timeout: 5000,
+      timeout: 2000,
       forceNew: false,
       upgrade: true,
       rememberUpgrade: true,
       reconnection: true,
-      reconnectionAttempts: 3,
-      reconnectionDelay: 2000
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     this.socket.on('connect', () => {

@@ -1,9 +1,10 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-
+import { cache } from '../utils/cache.js';
 import { createNotificationForAllUsers } from './notifications.js';
 import { emitRoomStatusChange, emitBookingUpdate } from '../socket/socketHandler.js';
+import emailService from '../services/emailService.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -20,8 +21,17 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Check for booking conflicts with faculty name
+// Optimized booking conflict check with caching
 const checkBookingConflicts = async (roomNumber, buildingNumber, date, startTime, endTime, excludeBookingId = null) => {
+  const roomKey = `${buildingNumber}-${roomNumber}`;
+  const timeKey = `${date}-${startTime}-${endTime}-${excludeBookingId || 'none'}`;
+  
+  // Check cache first
+  const cachedResult = await cache.getConflictCheck(roomKey, timeKey);
+  if (cachedResult !== null) {
+    return cachedResult;
+  }
+  
   const startDateTime = new Date(`${date}T${startTime}:00+05:30`);
   const endDateTime = new Date(`${date}T${endTime}:00+05:30`);
   
@@ -42,7 +52,12 @@ const checkBookingConflicts = async (roomNumber, buildingNumber, date, startTime
     }
   });
   
-  return conflictBooking ? [{ conflict: true, facultyName: conflictBooking.user.fName }] : [];
+  const result = conflictBooking ? [{ conflict: true, facultyName: conflictBooking.user.fName }] : [];
+  
+  // Cache the result
+  await cache.setConflictCheck(roomKey, timeKey, result);
+  
+  return result;
 };
 
 // Swap to available room immediately
@@ -179,6 +194,11 @@ router.post('/swap', authenticateToken, async (req, res) => {
       },
       data: { rStatus: 'Booked' }
     });
+    
+    // Invalidate cache for both rooms
+    await cache.invalidateRoom(currentBuildingNumber, currentRoomNumber);
+    await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
+    await cache.delete('all_rooms_status');
 
     // Get user name for notification
     const user = await prisma.user.findUnique({
@@ -232,26 +252,12 @@ router.post('/', authenticateToken, async (req, res) => {
     const startDateTime = new Date(`${date}T${startTime}:00+05:30`);
     const endDateTime = new Date(`${date}T${endTime}:00+05:30`);
     
-    // Quick conflict check with faculty name
-    const conflictBooking = await prisma.booking.findFirst({
-      where: {
-        rNo: roomNumber,
-        bNo: parseInt(buildingNumber),
-        date: bookingDate,
-        status: { in: ['confirmed', 'pending'] },
-        startTime: { lt: endDateTime },
-        endTime: { gt: startDateTime }
-      },
-      include: {
-        user: {
-          select: { fName: true }
-        }
-      }
-    });
+    // Fast conflict check using optimized function
+    const conflicts = await checkBookingConflicts(roomNumber, buildingNumber, date, startTime, endTime);
     
-    if (conflictBooking) {
+    if (conflicts.length > 0) {
       return res.status(409).json({ 
-        error: `Room is already booked by ${conflictBooking.user.fName}` 
+        error: `Room is already booked by ${conflicts[0].facultyName}` 
       });
     }
     
@@ -280,6 +286,10 @@ router.post('/', authenticateToken, async (req, res) => {
         },
         data: { rStatus: 'Booked' }
       });
+      
+      // Invalidate cache
+      await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
+      await cache.delete('all_rooms_status');
     }
 
     // Get user name for notification
@@ -297,6 +307,27 @@ router.post('/', authenticateToken, async (req, res) => {
       `${userName} booked Room ${roomNumber} (Building ${buildingNumber}) on ${bookingDate.toDateString()} from ${timeStr}`,
       false
     );
+
+    // Send email notification if enabled
+    const userSettings = await prisma.user.findUnique({
+      where: { fId: req.user.facultyId },
+      select: { fEmail: true }
+    });
+    
+    if (userSettings?.fEmail) {
+      const emailNotifications = req.headers['x-email-notifications'] === 'true';
+      if (emailNotifications) {
+        await emailService.sendBookingConfirmation(userSettings.fEmail, {
+          roomNumber,
+          buildingNumber,
+          date: bookingDate.toISOString().split('T')[0],
+          startTime,
+          endTime,
+          purpose: courseSubject || purpose || 'Not specified',
+          numberOfStudents: numberOfStudents || 'Not specified'
+        });
+      }
+    }
 
     // Emit real-time updates
     emitRoomStatusChange(buildingNumber, roomNumber, 'Booked');
@@ -355,6 +386,25 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
       `${userName} cancelled booking for Room ${booking.rNo} (Building ${booking.bNo}) ${timeStr}`,
       false
     );
+
+    // Send email notification if enabled
+    const userSettings = await prisma.user.findUnique({
+      where: { fId: req.user.facultyId },
+      select: { fEmail: true }
+    });
+    
+    if (userSettings?.fEmail) {
+      const emailNotifications = req.headers['x-email-notifications'] === 'true';
+      if (emailNotifications) {
+        await emailService.sendBookingCancellation(userSettings.fEmail, {
+          roomNumber: booking.rNo,
+          buildingNumber: booking.bNo.toString(),
+          date: booking.date,
+          startTime: booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          endTime: booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+        });
+      }
+    }
 
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');

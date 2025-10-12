@@ -42,6 +42,7 @@ model Room {
   wishlist  Wishlist[]
   
   @@id([bNo, rNo])
+  @@index([bNo, rStatus])
   @@map("rooms")
 }
 
@@ -101,6 +102,9 @@ model Booking {
   room Room @relation(fields: [bNo, rNo], references: [bNo, rNo], onDelete: Cascade)
   
   @@unique([bNo, rNo, date, startTime, endTime], name: "unique_booking")
+  @@index([bNo, rNo, date, status])
+  @@index([date, startTime, endTime, status])
+  @@index([status, startTime, endTime])
   @@map("bookings")
 }
 
