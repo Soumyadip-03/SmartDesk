@@ -17,7 +17,7 @@ class SocketService {
 
     console.log('🔌 Connecting to Socket.io...');
     
-    const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 'http://localhost:3001';
+    const socketUrl = (import.meta as any).env?.VITE_SOCKET_URL || 'https://smartdesk-backend-gzci.onrender.com';
     console.log('🔌 Socket URL:', socketUrl);
     this.socket = io(socketUrl, {
       auth: { token },

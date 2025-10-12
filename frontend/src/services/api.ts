@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'https://smartdesk-backend-gzci.onrender.com/api';
 
 class ApiService {
   private csrfToken: string | null = null;
