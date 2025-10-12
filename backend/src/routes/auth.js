@@ -136,6 +136,14 @@ router.post('/login', async (req, res) => {
     
     console.log('Searching for email:', sanitizedEmail);
     
+    // Debug: Check if we can find ANY users
+    const allUsers = await prisma.user.findMany({
+      select: { fEmail: true, fId: true, fName: true },
+      take: 5
+    });
+    console.log('Total users found in database:', allUsers.length);
+    console.log('Sample users:', allUsers);
+    
     const user = await prisma.user.findUnique({ 
       where: { fEmail: sanitizedEmail },
       include: { establishment: true }
