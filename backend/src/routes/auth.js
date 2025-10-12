@@ -38,7 +38,7 @@ const validateCSRF = (req, res, next) => {
   }
 };
 
-router.post('/register', validateCSRF, async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { email, name, establishmentId, facultyId, password } = req.body;
     const sanitizedEmail = sanitizeInput(email);
@@ -152,7 +152,7 @@ router.post('/register', validateCSRF, async (req, res) => {
   }
 });
 
-router.post('/login', validateCSRF, async (req, res) => {
+router.post('/login', async (req, res) => {
   // Rate limiting check
   const ipAddress = req.ip || req.connection.remoteAddress;
   const recentAttempts = await prisma.auditLog.count({
