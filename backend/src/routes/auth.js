@@ -281,11 +281,16 @@ router.get('/debug-db', async (req, res) => {
       select: { fEmail: true, fId: true, fName: true }
     });
     
+    // Show partial connection string for debugging
+    const dbUrl = process.env.DATABASE_URL || 'Missing';
+    const maskedUrl = dbUrl.includes('@') ? 
+      dbUrl.split('@')[1] : 'Invalid format';
+    
     res.json({
       totalUsers: userCount,
       sampleUser: sampleUser,
-      databaseUrl: process.env.DATABASE_URL ? 'Connected' : 'Missing',
-      prismaVersion: 'Connected'
+      databaseHost: maskedUrl,
+      hasConnectionString: !!process.env.DATABASE_URL
     });
   } catch (error) {
     res.status(500).json({
