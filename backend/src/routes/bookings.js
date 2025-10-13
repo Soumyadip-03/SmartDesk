@@ -21,17 +21,8 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Optimized booking conflict check with caching
+// Simple booking conflict check without caching
 const checkBookingConflicts = async (roomNumber, buildingNumber, date, startTime, endTime, excludeBookingId = null) => {
-  const roomKey = `${buildingNumber}-${roomNumber}`;
-  const timeKey = `${date}-${startTime}-${endTime}-${excludeBookingId || 'none'}`;
-  
-  // Check cache first
-  const cachedResult = await cache.getConflictCheck(roomKey, timeKey);
-  if (cachedResult !== null) {
-    return cachedResult;
-  }
-  
   const startDateTime = new Date(`${date}T${startTime}:00+05:30`);
   const endDateTime = new Date(`${date}T${endTime}:00+05:30`);
   
@@ -52,12 +43,7 @@ const checkBookingConflicts = async (roomNumber, buildingNumber, date, startTime
     }
   });
   
-  const result = conflictBooking ? [{ conflict: true, facultyName: conflictBooking.user.fName }] : [];
-  
-  // Cache the result
-  await cache.setConflictCheck(roomKey, timeKey, result);
-  
-  return result;
+  return conflictBooking ? [{ conflict: true, facultyName: conflictBooking.user.fName }] : [];
 };
 
 // Swap to available room immediately
@@ -195,12 +181,13 @@ router.post('/swap', authenticateToken, async (req, res) => {
       data: { rStatus: 'Booked' }
     });
     
-    // Invalidate cache for both rooms and buildings
-    await cache.invalidateRoom(currentBuildingNumber, currentRoomNumber);
-    await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
-    await cache.clearBuildingCache(currentBuildingNumber);
-    await cache.clearBuildingCache(parseInt(buildingNumber));
-    await cache.delete('all_rooms_status');
+    // Cache invalidation (safe fallback)
+    try {
+      await cache.invalidateRoom(currentBuildingNumber, currentRoomNumber);
+      await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
+    } catch (error) {
+      console.log('Cache invalidation failed (non-critical):', error.message);
+    }
 
     // Get user name for notification
     const user = await prisma.user.findUnique({
@@ -289,10 +276,12 @@ router.post('/', authenticateToken, async (req, res) => {
         data: { rStatus: 'Booked' }
       });
       
-      // Invalidate cache
-      await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
-      await cache.clearBuildingCache(parseInt(buildingNumber));
-      await cache.delete('all_rooms_status');
+      // Safe cache invalidation
+      try {
+        await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
+      } catch (error) {
+        console.log('Cache invalidation failed (non-critical):', error.message);
+      }
     }
 
     // Get user name for notification
@@ -409,10 +398,12 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
       }
     }
 
-    // Invalidate cache
-    await cache.invalidateRoom(booking.bNo, booking.rNo);
-    await cache.clearBuildingCache(booking.bNo);
-    await cache.delete('all_rooms_status');
+    // Safe cache invalidation
+    try {
+      await cache.invalidateRoom(booking.bNo, booking.rNo);
+    } catch (error) {
+      console.log('Cache invalidation failed (non-critical):', error.message);
+    }
 
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');
@@ -470,10 +461,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       false
     );
 
-    // Invalidate cache
-    await cache.invalidateRoom(booking.bNo, booking.rNo);
-    await cache.clearBuildingCache(booking.bNo);
-    await cache.delete('all_rooms_status');
+    // Safe cache invalidation
+    try {
+      await cache.invalidateRoom(booking.bNo, booking.rNo);
+    } catch (error) {
+      console.log('Cache invalidation failed (non-critical):', error.message);
+    }
 
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');
