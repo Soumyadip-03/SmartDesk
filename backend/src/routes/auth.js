@@ -108,7 +108,7 @@ router.post('/register', async (req, res) => {
       }
     });
     
-    const token = jwt.sign({ facultyId: user.fId }, process.env.JWT_SECRET);
+    const token = jwt.sign({ facultyId: user.fId }, process.env.JWT_SECRET, { expiresIn: '24h' });
     
     res.json({ 
       token, 
@@ -290,7 +290,7 @@ router.post('/login', async (req, res) => {
       }
     });
     
-    const token = jwt.sign({ facultyId: user.fId }, process.env.JWT_SECRET);
+    const token = jwt.sign({ facultyId: user.fId }, process.env.JWT_SECRET, { expiresIn: '24h' });
     
     console.log('Successful login - Role:', user.fRole);
     

@@ -8,12 +8,14 @@ export const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('No token provided in request');
     return res.status(401).json({ error: 'Access token required' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
+      console.log('Token verification failed:', err.message);
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
     
     try {
@@ -24,6 +26,7 @@ export const authenticateToken = (req, res, next) => {
       });
       
       if (!user) {
+        console.log('User not found for facultyId:', decoded.facultyId);
         return res.status(403).json({ error: 'User not found' });
       }
       
@@ -35,6 +38,7 @@ export const authenticateToken = (req, res, next) => {
       };
       next();
     } catch (error) {
+      console.error('Database error in auth:', error);
       return res.status(500).json({ error: 'Database error' });
     }
   });
