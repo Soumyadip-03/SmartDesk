@@ -72,7 +72,7 @@ class ApiService {
     
     for (let attempt = 1; attempt <= this.retryCount; attempt++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
