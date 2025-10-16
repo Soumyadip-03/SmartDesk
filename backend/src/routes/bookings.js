@@ -1,7 +1,6 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-import { cache } from '../utils/cache.js';
 import { createNotificationForAllUsers } from './notifications.js';
 import { emitRoomStatusChange, emitBookingUpdate } from '../socket/socketHandler.js';
 import emailService from '../services/emailService.js';
@@ -181,13 +180,7 @@ router.post('/swap', authenticateToken, async (req, res) => {
       data: { rStatus: 'Booked' }
     });
     
-    // Cache invalidation (safe fallback)
-    try {
-      await cache.invalidateRoom(currentBuildingNumber, currentRoomNumber);
-      await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
-    } catch (error) {
-      console.log('Cache invalidation failed (non-critical):', error.message);
-    }
+    // Room statuses updated - no cache needed
 
     // Get user name for notification
     const user = await prisma.user.findUnique({
@@ -276,12 +269,7 @@ router.post('/', authenticateToken, async (req, res) => {
         data: { rStatus: 'Booked' }
       });
       
-      // Safe cache invalidation
-      try {
-        await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
-      } catch (error) {
-        console.log('Cache invalidation failed (non-critical):', error.message);
-      }
+      // Room status updated - no cache needed
     }
 
     // Get user name for notification
@@ -398,13 +386,6 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
       }
     }
 
-    // Safe cache invalidation
-    try {
-      await cache.invalidateRoom(booking.bNo, booking.rNo);
-    } catch (error) {
-      console.log('Cache invalidation failed (non-critical):', error.message);
-    }
-
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');
     emitBookingUpdate(req.user.facultyId, { ...booking, status: 'cancelled' });
@@ -460,13 +441,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       `${userName} deleted booking for Room ${booking.rNo} (Building ${booking.bNo}) ${timeStr}`,
       false
     );
-
-    // Safe cache invalidation
-    try {
-      await cache.invalidateRoom(booking.bNo, booking.rNo);
-    } catch (error) {
-      console.log('Cache invalidation failed (non-critical):', error.message);
-    }
 
     // Emit real-time updates
     emitRoomStatusChange(booking.bNo, booking.rNo, 'Available');

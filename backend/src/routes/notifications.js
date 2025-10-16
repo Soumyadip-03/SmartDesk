@@ -1,7 +1,6 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-import { cache } from '../utils/cache.js';
 
 
 const router = express.Router();
@@ -9,26 +8,20 @@ const prisma = new PrismaClient();
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const cacheKey = `notifications_${req.user.facultyId}`;
-    let notifications = await cache.get(cacheKey);
-    
-    if (!notifications) {
-      notifications = await prisma.notification.findMany({
-        where: { fId: req.user.facultyId },
-        select: {
-          notificationId: true,
-          type: true,
-          title: true,
-          message: true,
-          isRead: true,
-          urgent: true,
-          createdAt: true
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20
-      });
-      await cache.set(cacheKey, notifications, 30000); // 30 sec cache
-    }
+    const notifications = await prisma.notification.findMany({
+      where: { fId: req.user.facultyId },
+      select: {
+        notificationId: true,
+        type: true,
+        title: true,
+        message: true,
+        isRead: true,
+        urgent: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
     
     res.json(notifications);
   } catch (error) {
@@ -62,9 +55,6 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
       data: { isRead: true }
     });
     
-    // Invalidate user's notification cache
-    await cache.delete(`notifications_${req.user.facultyId}`);
-    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update notification' });
@@ -81,9 +71,6 @@ router.put('/mark-all-read', authenticateToken, async (req, res) => {
       },
       data: { isRead: true }
     });
-    
-    // Invalidate user's notification cache
-    await cache.delete(`notifications_${req.user.facultyId}`);
     
     res.json({ success: true });
   } catch (error) {

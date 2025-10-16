@@ -47,13 +47,37 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
+// Health check and root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'SmartDesk Backend API',
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     localTime: new Date().toLocaleString(),
     timezone: process.env.TZ || 'UTC'
+  });
+});
+
+// API info endpoint
+app.get('/api', (req, res) => {
+  res.json({ 
+    message: 'SmartDesk API v1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      buildings: '/api/buildings',
+      bookings: '/api/bookings',
+      rooms: '/api/rooms',
+      dashboard: '/api/dashboard'
+    },
+    status: 'OK'
   });
 });
 

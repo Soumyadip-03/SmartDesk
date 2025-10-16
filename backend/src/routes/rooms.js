@@ -1,52 +1,41 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
-import { cache } from '../utils/cache.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get all rooms with dynamic availability status (optimized)
+// Get all rooms with dynamic availability status
 router.get('/', async (req, res) => {
   try {
-    const cacheKey = 'all_rooms_status';
-    let roomsWithStatus = await cache.get(cacheKey);
+    const rooms = await prisma.room.findMany({
+      orderBy: [{ bNo: 'asc' }, { rNo: 'asc' }],
+      include: { building: true }
+    });
     
-    if (!roomsWithStatus) {
-      const rooms = await prisma.room.findMany({
-        orderBy: [{ bNo: 'asc' }, { rNo: 'asc' }],
-        include: { building: true }
-      });
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Get all active bookings
+    const activeBookings = await prisma.booking.findMany({
+      where: {
+        date: today,
+        status: 'confirmed',
+        startTime: { lte: now },
+        endTime: { gte: now }
+      },
+      select: { bNo: true, rNo: true }
+    });
+    
+    // Create lookup map
+    const bookedRooms = new Set(activeBookings.map(b => `${b.bNo}-${b.rNo}`));
+    
+    const roomsWithStatus = rooms.map(room => {
+      let dynamicStatus = room.rStatus === 'Maintenance' ? 'Maintenance' : 
+                         bookedRooms.has(`${room.bNo}-${room.rNo}`) ? 'Booked' : 'Available';
       
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      // Bulk query for all active bookings
-      const activeBookings = await prisma.booking.findMany({
-        where: {
-          date: today,
-          status: 'confirmed',
-          startTime: { lte: now },
-          endTime: { gte: now }
-        },
-        select: { bNo: true, rNo: true }
-      });
-      
-      // Create lookup map for O(1) access
-      const bookedRooms = new Set(activeBookings.map(b => `${b.bNo}-${b.rNo}`));
-      
-      roomsWithStatus = await Promise.all(rooms.map(async room => {
-        let dynamicStatus = room.rStatus === 'Maintenance' ? 'Maintenance' : 
-                           bookedRooms.has(`${room.bNo}-${room.rNo}`) ? 'Booked' : 'Available';
-        
-        // Cache individual room status
-        await cache.setRoomStatus(room.bNo, room.rNo, dynamicStatus);
-        
-        return { ...room, dynamicStatus };
-      }));
-      
-      await cache.set(cacheKey, roomsWithStatus, 15000); // 15 sec cache
-    }
+      return { ...room, dynamicStatus };
+    });
     
     res.json(roomsWithStatus);
   } catch (error) {
@@ -107,10 +96,6 @@ router.put('/:roomNumber/:buildingNumber/status', authenticateToken, async (req,
         building: true
       }
     });
-    
-    // Invalidate cache
-    await cache.invalidateRoom(parseInt(buildingNumber), roomNumber);
-    await cache.delete('all_rooms_status');
     
     res.json(updatedRoom);
   } catch (error) {

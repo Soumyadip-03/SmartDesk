@@ -1,29 +1,21 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { cache } from '../utils/cache.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get room statistics by type (cached)
+// Get room statistics by type
 router.get('/room-types', async (req, res) => {
   try {
-    const cacheKey = 'dashboard_room_types';
-    let formattedData = await cache.get(cacheKey);
+    const roomTypes = await prisma.room.groupBy({
+      by: ['rType'],
+      _count: { rType: true }
+    });
     
-    if (!formattedData) {
-      const roomTypes = await prisma.room.groupBy({
-        by: ['rType'],
-        _count: { rType: true }
-      });
-      
-      formattedData = roomTypes.map(type => ({
-        type: type.rType || 'Undefined',
-        count: type._count.rType
-      }));
-      
-      await cache.set(cacheKey, formattedData, 120000); // 2 min cache
-    }
+    const formattedData = roomTypes.map(type => ({
+      type: type.rType || 'Undefined',
+      count: type._count.rType
+    }));
     
     res.json(formattedData);
   } catch (error) {
@@ -32,25 +24,18 @@ router.get('/room-types', async (req, res) => {
   }
 });
 
-// Get room statistics by status (cached)
+// Get room statistics by status
 router.get('/room-status', async (req, res) => {
   try {
-    const cacheKey = 'dashboard_room_status';
-    let formattedData = await cache.get(cacheKey);
+    const roomStatus = await prisma.room.groupBy({
+      by: ['rStatus'],
+      _count: { rStatus: true }
+    });
     
-    if (!formattedData) {
-      const roomStatus = await prisma.room.groupBy({
-        by: ['rStatus'],
-        _count: { rStatus: true }
-      });
-      
-      formattedData = roomStatus.map(status => ({
-        status: status.rStatus || 'Unknown',
-        count: status._count.rStatus
-      }));
-      
-      await cache.set(cacheKey, formattedData, 60000); // 1 min cache
-    }
+    const formattedData = roomStatus.map(status => ({
+      status: status.rStatus || 'Unknown',
+      count: status._count.rStatus
+    }));
     
     res.json(formattedData);
   } catch (error) {

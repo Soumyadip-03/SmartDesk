@@ -1,22 +1,15 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { cache } from '../utils/cache.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get all buildings (cached)
+// Get all buildings
 router.get('/', async (req, res) => {
   try {
-    const cacheKey = 'all_buildings';
-    let buildings = await cache.get(cacheKey);
-    
-    if (!buildings) {
-      buildings = await prisma.building.findMany({
-        orderBy: { bNo: 'asc' }
-      });
-      await cache.set(cacheKey, buildings, 300000); // 5 min cache
-    }
+    const buildings = await prisma.building.findMany({
+      orderBy: { bNo: 'asc' }
+    });
     
     res.json(buildings);
   } catch (error) {
@@ -50,21 +43,15 @@ router.get('/:buildingNumber', async (req, res) => {
   }
 });
 
-// Get rooms for a specific building (cached)
+// Get rooms for a specific building
 router.get('/:buildingNumber/rooms', async (req, res) => {
   try {
     const { buildingNumber } = req.params;
-    const cacheKey = `building_${buildingNumber}_rooms`;
     
-    let rooms = await cache.get(cacheKey);
-    
-    if (!rooms) {
-      rooms = await prisma.room.findMany({
-        where: { bNo: parseInt(buildingNumber) },
-        orderBy: { rNo: 'asc' }
-      });
-      await cache.set(cacheKey, rooms, 60000); // 1 min cache
-    }
+    const rooms = await prisma.room.findMany({
+      where: { bNo: parseInt(buildingNumber) },
+      orderBy: { rNo: 'asc' }
+    });
     
     res.json(rooms);
   } catch (error) {
