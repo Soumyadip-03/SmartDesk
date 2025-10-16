@@ -158,11 +158,19 @@ export default function App() {
 
   // Load buildings from API
   useEffect(() => {
-    if (!user || buildingsLoaded) return;
+    if (!user) return;
+    
+    const abortController = new AbortController();
+    let hasLoaded = false;
     
     const loadBuildings = async () => {
+      if (hasLoaded) return;
+      hasLoaded = true;
+      
       try {
         const buildingsData = await apiService.getBuildings();
+        if (abortController.signal.aborted) return;
+        
         if (buildingsData && buildingsData.length > 0) {
           const formattedBuildings = buildingsData.map((building: any) => ({
             id: building.bNo.toString(),
@@ -172,15 +180,23 @@ export default function App() {
           }));
           setBuildings(formattedBuildings);
         }
-      } catch (error) {
-        console.error('Failed to load buildings:', error);
-      } finally {
+        setBuildingsLoaded(true);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Failed to load buildings:', error);
+        }
         setBuildingsLoaded(true);
       }
     };
 
-    loadBuildings();
-  }, [user, buildingsLoaded]);
+    if (!buildingsLoaded) {
+      loadBuildings();
+    }
+    
+    return () => {
+      abortController.abort();
+    };
+  }, [user?.id]);
 
   const handleBuildingClick = (buildingNumber: string) => {
     setSelectedBuilding(buildingNumber);
