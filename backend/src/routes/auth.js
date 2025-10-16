@@ -354,6 +354,26 @@ router.get('/debug-db', async (req, res) => {
   }
 });
 
+// Test token validation endpoint
+router.get('/test-token', authenticateToken, async (req, res) => {
+  try {
+    res.json({
+      message: 'Token is valid',
+      user: {
+        facultyId: req.user.facultyId,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Token validation failed',
+      details: error.message
+    });
+  }
+});
+
 // Get user profile
 router.get('/profile', authenticateToken, async (req, res) => {
   try {

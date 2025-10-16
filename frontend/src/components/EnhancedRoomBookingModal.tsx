@@ -194,6 +194,27 @@ export const EnhancedRoomBookingModal = ({
           </div>
         )}
 
+        {/* Debug Token Test */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const { apiService } = await import('../services/api');
+                const result = await apiService.testToken();
+                console.log('✅ Token test result:', result);
+                setError(null);
+              } catch (err: any) {
+                console.error('❌ Token test failed:', err);
+                setError(`Token test failed: ${err.message}`);
+              }
+            }}
+            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-3 py-1 rounded text-xs transition-all border border-blue-500/30"
+          >
+            Test Token
+          </button>
+        </div>
+
         {/* Booking Form */}
         <form onSubmit={handleSubmit} className="space-y-2">
           <div className="grid grid-cols-2 gap-4">

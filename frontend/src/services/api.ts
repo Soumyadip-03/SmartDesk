@@ -12,7 +12,12 @@ class ApiService {
   private getAuthHeaders() {
     const token = sessionStorage.getItem('token');
     const headers: Record<string, string> = {};
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Auth token found:', token.substring(0, 20) + '...');
+    } else {
+      console.error('❌ No auth token found in sessionStorage');
+    }
     if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
     return headers;
   }
@@ -232,6 +237,8 @@ class ApiService {
   }) {
     const { roomNumber, buildingNumber, date, startTime, endTime, bookingType = 'now', purpose = '', notes = '', courseSubject = '', numberOfStudents = '' } = bookingData;
     
+    console.log('📝 Creating booking with data:', bookingData);
+    
     if (!roomNumber || !buildingNumber || !date || !startTime || !endTime) {
       throw new Error('All booking fields are required');
     }
@@ -247,6 +254,8 @@ class ApiService {
     
     // Check if email notifications are enabled
     const emailNotifications = localStorage.getItem('emailNotifications') === 'true';
+    
+    console.log('🚀 Making booking request to /bookings');
     
     return this.request('/bookings', {
       method: 'POST',
@@ -412,6 +421,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ message, context }),
     });
+  }
+
+  // Test token validation
+  async testToken() {
+    console.log('🧪 Testing token validation...');
+    return this.request('/auth/test-token');
   }
 }
 
