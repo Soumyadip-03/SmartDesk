@@ -31,7 +31,7 @@ export const EnhancedRoomBookingModal = ({
   const { theme } = useTheme();
   const [bookingType, setBookingType] = useState<'now' | 'later'>('now');
   const [formData, setFormData] = useState({
-    facultyName: JSON.parse(localStorage.getItem('user') || '{}').name || '',
+    facultyName: JSON.parse(sessionStorage.getItem('user') || '{}').name || '',
     courseSubject: '',
     numberOfStudents: '',
     date: (() => {

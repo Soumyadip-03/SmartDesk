@@ -220,8 +220,6 @@ export default function App() {
     setUserName('');
     setWishlistRooms([]);
     setBookings([]);
-    // Force page reload to reset AuthGuard state
-    window.location.reload();
   };
 
   const handleAddToWishlist = async (room: any) => {
