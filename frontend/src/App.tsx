@@ -279,7 +279,6 @@ export default function App() {
       let newBooking;
       
       if (bookingData.bookingType === 'swap') {
-        // Handle room swap
         newBooking = await apiService.swapToRoom({
           roomNumber: bookingData.roomNumber,
           buildingNumber: bookingData.buildingNumber,
@@ -293,7 +292,6 @@ export default function App() {
         setToastMessage(`Room swapped successfully to ${bookingData.roomNumber}!`);
         setShowToast(true);
       } else {
-        // Handle regular booking
         newBooking = await apiService.createBooking({
           roomNumber: bookingData.roomNumber,
           buildingNumber: bookingData.buildingNumber,
@@ -311,25 +309,27 @@ export default function App() {
         setShowToast(true);
       }
       
-      const formattedBooking = {
-        id: newBooking.bookingId?.toString() || Date.now().toString(),
-        roomNumber: bookingData.roomNumber,
-        buildingNumber: bookingData.buildingNumber,
-        date: bookingData.date || new Date().toISOString().split('T')[0],
-        startTime: bookingData.startTime || '09:00',
-        endTime: bookingData.endTime || '10:00',
-        status: 'confirmed',
-        facultyName: bookingData.facultyName || user?.name || 'Unknown',
-        courseSubject: bookingData.courseSubject || bookingData.purpose || 'N/A',
-        numberOfStudents: bookingData.numberOfStudents || '0',
-        notes: bookingData.notes || '',
-        purpose: bookingData.purpose || ''
-      };
-      
-      setBookings(prev => {
-        const exists = prev.find(b => b.id === formattedBooking.id);
-        return exists ? prev : [...prev, formattedBooking];
-      });
+      if (newBooking && newBooking.bookingId) {
+        const formattedBooking = {
+          id: newBooking.bookingId.toString(),
+          roomNumber: bookingData.roomNumber,
+          buildingNumber: bookingData.buildingNumber,
+          date: bookingData.date || new Date().toISOString().split('T')[0],
+          startTime: bookingData.startTime || '09:00',
+          endTime: bookingData.endTime || '10:00',
+          status: 'confirmed',
+          facultyName: bookingData.facultyName || user?.name || 'Unknown',
+          courseSubject: bookingData.courseSubject || bookingData.purpose || 'N/A',
+          numberOfStudents: bookingData.numberOfStudents || '0',
+          notes: bookingData.notes || '',
+          purpose: bookingData.purpose || ''
+        };
+        
+        setBookings(prev => {
+          const exists = prev.find(b => b.id === formattedBooking.id);
+          return exists ? prev : [...prev, formattedBooking];
+        });
+      }
     } catch (error) {
       console.error('Failed to create booking:', error);
       throw error;
