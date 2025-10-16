@@ -148,14 +148,19 @@ class ApiService {
     console.log('Attempting login for:', email);
     
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
       
+      clearTimeout(timeoutId);
       console.log('Login response status:', response.status);
       
       if (!response.ok) {
@@ -164,7 +169,10 @@ class ApiService {
       }
       
       return response.json();
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        throw new Error('Login timeout - please try again');
+      }
       console.error('Login error:', error);
       throw error;
     }
