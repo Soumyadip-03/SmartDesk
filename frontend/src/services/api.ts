@@ -74,10 +74,10 @@ class ApiService {
 
         if (response.status === 401 || response.status === 403) {
           if (!endpoint.includes('/auth/')) {
+            console.error('🚫 Authentication failed - clearing session');
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user');
-            window.location.reload();
-            return;
+            throw new Error('Authentication expired. Please login again.');
           }
         }
 

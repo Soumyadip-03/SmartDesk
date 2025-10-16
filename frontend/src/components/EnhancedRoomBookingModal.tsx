@@ -56,6 +56,12 @@ export const EnhancedRoomBookingModal = ({
     setError(null);
     
     try {
+      // Check token before booking
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found. Please logout and login again.');
+      }
+      
       const bookingData = {
         roomNumber: room.rNo,
         buildingNumber: room.bNo.toString(),
@@ -86,6 +92,8 @@ export const EnhancedRoomBookingModal = ({
           errorMessage = 'Network error. Please check your internet connection.';
         } else if (err.message.includes('already booked')) {
           errorMessage = 'This room is already booked for the selected time.';
+        } else if (err.message.includes('401') || err.message.includes('Access token')) {
+          errorMessage = 'Authentication expired. Please logout and login again.';
         } else {
           errorMessage = err.message;
         }
@@ -195,7 +203,7 @@ export const EnhancedRoomBookingModal = ({
         )}
 
         {/* Debug Token Test */}
-        <div className="mb-4">
+        <div className="mb-4 flex gap-2">
           <button
             type="button"
             onClick={async () => {
@@ -203,15 +211,26 @@ export const EnhancedRoomBookingModal = ({
                 const { apiService } = await import('../services/api');
                 const result = await apiService.testToken();
                 console.log('✅ Token test result:', result);
-                setError(null);
+                setError(`✅ Token valid: ${result.user.name}`);
               } catch (err: any) {
                 console.error('❌ Token test failed:', err);
-                setError(`Token test failed: ${err.message}`);
+                setError(`❌ Token invalid: ${err.message}. Please logout and login again.`);
               }
             }}
             className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-3 py-1 rounded text-xs transition-all border border-blue-500/30"
           >
             Test Token
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              sessionStorage.removeItem('token');
+              sessionStorage.removeItem('user');
+              window.location.reload();
+            }}
+            className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded text-xs transition-all border border-red-500/30"
+          >
+            Logout & Refresh
           </button>
         </div>
 
