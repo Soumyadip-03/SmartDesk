@@ -15,8 +15,26 @@ class ApiService {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
       console.log('🔑 Auth token found:', token.substring(0, 20) + '...');
+      
+      // Check if token is expired (basic check)
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const now = Date.now() / 1000;
+        if (payload.exp && payload.exp < now) {
+          console.error('❌ Token is expired, clearing session');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+          throw new Error('Token expired. Please login again.');
+        }
+      } catch (e) {
+        console.error('❌ Invalid token format, clearing session');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        throw new Error('Invalid token. Please login again.');
+      }
     } else {
       console.error('❌ No auth token found in sessionStorage');
+      throw new Error('No authentication token. Please login.');
     }
     if (this.csrfToken) headers['X-CSRF-Token'] = this.csrfToken;
     return headers;
@@ -77,6 +95,8 @@ class ApiService {
             console.error('🚫 Authentication failed - clearing session');
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user');
+            // Force page reload to reset app state
+            setTimeout(() => window.location.reload(), 1000);
             throw new Error('Authentication expired. Please login again.');
           }
         }
