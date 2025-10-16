@@ -21,16 +21,12 @@ class ApiService {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const now = Date.now() / 1000;
         if (payload.exp && payload.exp < now) {
-          console.error('❌ Token is expired, clearing session');
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('user');
+          console.error('❌ Token is expired');
           throw new Error('Token expired. Please login again.');
         }
       } catch (e) {
-        console.error('❌ Invalid token format, clearing session');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-        throw new Error('Invalid token. Please login again.');
+        // Token might be malformed, but let the server decide
+        console.warn('⚠️ Token format issue, letting server validate');
       }
     } else {
       console.error('❌ No auth token found in sessionStorage');
@@ -92,11 +88,7 @@ class ApiService {
 
         if (response.status === 401 || response.status === 403) {
           if (!endpoint.includes('/auth/')) {
-            console.error('🚫 Authentication failed - clearing session');
-            sessionStorage.removeItem('token');
-            sessionStorage.removeItem('user');
-            // Force page reload to reset app state
-            setTimeout(() => window.location.reload(), 1000);
+            console.error('🚫 Authentication failed');
             throw new Error('Authentication expired. Please login again.');
           }
         }
